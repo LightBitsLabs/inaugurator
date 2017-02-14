@@ -37,7 +37,7 @@ RUN yum install -y \
     rsync && \
     yum -y clean all
 
-RUN pip install pep8 pika>=0.10.0
+RUN pip install pep8 jsonpath-rw-ext pika>=0.10.0
 
 # Edit sudoers file to avoid error: sudo: sorry, you must have a tty to run sudo
 RUN sed -i -e "s/Defaults    requiretty.*/ #Defaults    requiretty/g" /etc/sudoers
