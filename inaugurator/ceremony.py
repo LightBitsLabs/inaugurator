@@ -18,6 +18,7 @@ from inaugurator import etclabelfile
 from inaugurator import lvmetad
 from inaugurator import verify
 from inaugurator import debugthread
+from inaugurator import system_data
 import os
 import re
 import time
@@ -206,10 +207,12 @@ class Ceremony:
                 macAddress=self._args.inauguratorUseNICWithMAC, ipAddress=self._args.inauguratorIPAddress,
                 netmask=self._args.inauguratorNetmask, gateway=self._args.inauguratorGateway)
         self._debugPort = debugthread.DebugThread()
+        sys_data=system_data.SystemData()
+        sys_data_info=sys_data.get_data()
         if self._args.inauguratorServerAMQPURL:
             self._talkToServer = talktoserver.TalkToServer(
                 amqpURL=self._args.inauguratorServerAMQPURL, myID=self._args.inauguratorMyIDForServer)
-            self._talkToServer.checkIn()
+            self._talkToServer.checkIn(sys_data_info)
         try:
             osmos = osmose.Osmose(
                 destination=destination,
