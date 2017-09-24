@@ -223,6 +223,7 @@ class Ceremony:
                 self._label = json.loads(message)['rootfs']
             else:
                 self._label = self._args.inauguratorNetworkLabel
+            logging.info("Inaugurate label %s" % self._label)
             osmos.tellLabel(self._label)
             osmos.wait()
         except Exception as e:
