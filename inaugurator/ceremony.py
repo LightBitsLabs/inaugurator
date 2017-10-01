@@ -24,6 +24,7 @@ import time
 import logging
 import threading
 import json
+import time
 
 
 class Ceremony:
@@ -224,6 +225,7 @@ class Ceremony:
             else:
                 self._label = self._args.inauguratorNetworkLabel
             logging.info("Inaugurate label %s" % self._label)
+            time.sleep(2)
             osmos.tellLabel(self._label)
             osmos.wait()
         except Exception as e:
