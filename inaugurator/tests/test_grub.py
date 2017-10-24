@@ -27,20 +27,20 @@ class Test(unittest.TestCase):
 
     def test_console_and_passthrough_valid_values(self):
         modifyingGrubConf(self.output, EXISTING_CONFIGURATION,
-                          ["ttyS1,115200n8"])
+                          ["ttyS1,115200n8"], "memmap=16G!64G")
         self._verify_not_linux_cmdline_equals()
-        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'], '" console=ttyS1,115200n8"')
+        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'], '" console=ttyS1,115200n8 memmap=16G!64G"')
 
-    def _test_console_and_passthrough_non_values(self, console):
-        modifyingGrubConf(self.output, EXISTING_CONFIGURATION, console)
+    def _test_console_and_passthrough_non_values(self, console, passthrough):
+        modifyingGrubConf(self.output, EXISTING_CONFIGURATION, console, passthrough)
         self._verify_not_linux_cmdline_equals()
-        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'], '" "')
+        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'], '"  "')
 
     def test_console_and_passthrough_empty_values(self):
-        self._test_console_and_passthrough_non_values([])
+        self._test_console_and_passthrough_non_values([], "")
 
     def test_none_values(self):
-        self._test_console_and_passthrough_non_values(None)
+        self._test_console_and_passthrough_non_values(None, None)
 
 if __name__ == '__main__':
     unittest.main()
