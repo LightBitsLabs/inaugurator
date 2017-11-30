@@ -24,6 +24,7 @@ import time
 import logging
 import threading
 import json
+import pika
 
 
 class Ceremony:
@@ -211,20 +212,26 @@ class Ceremony:
                 amqpURL=self._args.inauguratorServerAMQPURL, myID=self._args.inauguratorMyIDForServer)
             self._talkToServer.checkIn()
         try:
-            osmos = osmose.Osmose(
-                destination=destination,
-                objectStores=self._args.inauguratorOsmosisObjectStores,
-                withLocalObjectStore=self._args.inauguratorWithLocalObjectStore,
-                localObjectStore=self._localObjectStore,
-                ignoreDirs=self._args.inauguratorIgnoreDirs,
-                talkToServer=self._talkToServer)
-            if self._args.inauguratorServerAMQPURL:
-                message = self._talkToServer.label()
-                self._label = json.loads(message)['rootfs']
-            else:
-                self._label = self._args.inauguratorNetworkLabel
-            osmos.tellLabel(self._label)
-            osmos.wait()
+            retries = 3
+            for _ in range(retries):
+                try:
+                    osmos = osmose.Osmose(
+                        destination=destination,
+                        objectStores=self._args.inauguratorOsmosisObjectStores,
+                        withLocalObjectStore=self._args.inauguratorWithLocalObjectStore,
+                        localObjectStore=self._localObjectStore,
+                        ignoreDirs=self._args.inauguratorIgnoreDirs,
+                        talkToServer=self._talkToServer)
+                    if self._args.inauguratorServerAMQPURL:
+                        message = self._talkToServer.label()
+                        self._label = json.loads(message)['rootfs']
+                    else:
+                        self._label = self._args.inauguratorNetworkLabel
+                    osmos.tellLabel(self._label)
+                    osmos.wait()
+                    return
+                except pika.exceptions.ConnectionClosed:
+                    self._talkToServer.retry_to_connect(times=5)
         except Exception as e:
             if self._debugPort is not None and self._debugPort.wasRebootCalled():
                 logging.info("Waiting to be reboot (from outside)...")
