@@ -311,7 +311,10 @@ class Ceremony:
             cleanup.eraseEverything()
             sh.run("busybox rm -fr %s/*" % destination)
             if self._talkToServer:
-                self._talkToServer.progress(dict(state='warning', message=str(e)))
+                try:
+                    self._talkToServer.progress(dict(state='warning', message=str(e)))
+                except Exception as e:
+                    logging.exception("rabbitmq channel is closed! retry to inaugurate! message:%(exception_msg)s",dict(exception_msg=e.message))
             self._doOsmosisFromSourceUnsafe(destination)
 
     def _doOsmosisFromSourceUnsafe(self, destination):
