@@ -184,13 +184,11 @@ class Ceremony:
             sh.run("rsync -rlpgDS --delete-before %s/boot/ %s/" % (destination, bootDestination))
         with self._mountOp.mountBootInsideRoot():
             serialDevices = self._getSerialDevices()
-            if serialDevices:
-                logging.info("Overriding GRUB2 user settings to set serial devices to '%(devices)s'...",
-                             dict(devices=serialDevices))
-                grub.setSerialDevices(serialDevices, destination)
-            else:
-                logging.warn("a 'console' argument was not given. Cannot tell which serial device to "
-                             "redirect the console output to (default values in the label will be used).")
+            log_msg = {True: "Overriding GRUB2 user settings to set serial devices to '%s'..." % (serialDevices),
+                       False: "a 'console' argument was not given. Cannot tell which serial device to "
+                              "redirect the console output to (default values in the label will be used)."}.get(bool(serialDevices))
+            getattr(logging, {True: 'info', False: 'warn'}.get(bool(serialDevices)))(log_msg)
+            grub.updateGrubConf(serialDevices, destination, self._args.inauguratorPassthrough)
             logging.info("Installing GRUB2...")
             grub.install(self._targetDevice, destination)
             logging.info("Reading newly generated GRUB2 configuration file for later use...")
