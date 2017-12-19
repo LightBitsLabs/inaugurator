@@ -115,10 +115,9 @@ class TalkToServerSpooler(threading.Thread):
 
 class TalkToServer:
     def __init__(self, amqpURL, myID):
-        statusExchange = "inaugurator_status__%s" % myID
-        labelExchange = "inaugurator_label__%s" % myID
         self._myID = myID
-        self._spooler = TalkToServerSpooler(amqpURL, statusExchange, labelExchange)
+        self._amqpURL = amqpURL
+        self._spooler = self._create_connection(self._amqpURL, self._myID)
 
     def checkIn(self):
         logging.info("talking to server: checkin")
@@ -138,3 +137,28 @@ class TalkToServer:
     def failed(self, message="Unknown reason"):
         logging.info("talking to server: failed")
         self._spooler.publishStatus(status="failed", id=self._myID, message=message)
+
+    def _create_connection(self, amqpURL, myID):
+        statusExchange = "inaugurator_status__%s" % myID
+        labelExchange = "inaugurator_label__%s" % myID
+        spooler = TalkToServerSpooler(amqpURL, statusExchange, labelExchange)
+        return spooler
+
+    def retry_to_connect(self, times):
+        try:
+            self._spooler.cleanUpResources()
+        except:
+            logging.info("Fail to cleanup while retries")
+
+        for _ in range(times):
+            self._spooler = self._create_connection(self._amqpURL, self.ID)
+            try:
+                logging.info("retry connection to amqp")
+                self.progress(status="progress", progress=dict(state='retry', message="Retry to connect"), id=self._myID)
+                return
+            except:
+                logging.exception("Retry fail, unable to connect.")
+        raise Exception("Unable to create amqp channel, fail inauguration")
+
+
+
