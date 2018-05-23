@@ -1,4 +1,4 @@
-KERNEL_VERSION=4.16.7-200.fc27.x86_64
+KERNEL_VERSION=4.16.9-200.fc27.x86_64
 INAUGURATOR_VERSION=$(shell python setup.py --version)
 
 KERNEL_IMAGE_PATH=define_build_host_msg
@@ -154,10 +154,12 @@ build/build-inaugurator.dockerfile:
 	cp docker/$(@F) $@
 
 .PHONY: build_container
+
 build_container: build/build-inaugurator.dockerfile
-	ifeq ($(BUILD_HOST),docker)
-		ifeq ($(shell sudo docker images | egrep -Ec "^build-inaugurator[ ]+$(INAUGURATOR_VERSION)" | xargs echo -n),0)
-			$(info It seems that a build-inaugurator image for version $(INAUGURATOR_VERSION) of Inaugurator was not built. Trying to build it....)
-			sudo docker build -f build/build-inaugurator.dockerfile -t build-inaugurator:$(INAUGURATOR_VERSION) build
-		endif
-	endif
+
+ifeq ($(BUILD_HOST),docker)
+ifeq ($(shell sudo docker images | egrep -Ec "^build-inaugurator[ ]+$(INAUGURATOR_VERSION)" | xargs echo -n),0)
+	$(info It seems that a build-inaugurator image for version $(INAUGURATOR_VERSION) of Inaugurator was not built. Trying to build it....)
+	sudo docker build -f build/build-inaugurator.dockerfile -t build-inaugurator:$(INAUGURATOR_VERSION) build
+endif
+endif
