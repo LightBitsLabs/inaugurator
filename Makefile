@@ -49,3 +49,6 @@ install_nodeps:
 
 prepareForCleanBuild:
 	sudo pip install pika
+
+shell:
+	/bin/bash
