@@ -8,6 +8,9 @@ all: build
 build:
 	$(Q)$(MAKE) -f $(inaugurator_makefile_dir)/Makefile $@ BUILD_HOST=docker
 
+docker-shell:
+	$(Q)$(MAKE) -f $(inaugurator_makefile_dir)/Makefile $@ BUILD_HOST=docker
+
 clean:
 	$(Q)$(MAKE) $(inaugurator_makefile_dir)/Makefile $@
 
