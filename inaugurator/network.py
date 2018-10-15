@@ -1,5 +1,6 @@
 import re
 from inaugurator import sh
+import logging
 
 
 class Network:
@@ -35,3 +36,13 @@ class Network:
         REGEX = re.compile(r'\d+:\s+([^:]+):\s+.*\s+link/ether\s+((?:[a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2})')
         ipOutput = sh.run("/usr/sbin/ip -o link")
         return {mac.lower(): interface for interface, mac in REGEX.findall(ipOutput)}
+
+def list_all_mac_addresses():
+    # network class serial numbers are network devices mac addresses
+    try:
+        cmd="/usr/sbin/lshw -c net 2>/dev/null| /usr/sbin/awk '/serial/{print $2}'"
+        output=sh.run(cmd).strip()
+        return output.split('\n')
+    except:
+        logging.exception("Failed to acquite network devices mac addresses")
+
