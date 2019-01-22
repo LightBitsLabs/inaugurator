@@ -64,6 +64,42 @@ def get_memory():
         return {'error': e.message}
 
 
+def get_lspci_lf():
+    '''
+    lspci indicate if exist and if lightfield is overpassed
+    '''
+    try:
+        r = sh.run('lspci|grep -iE "8764|1d9a"')
+        lines = r.strip().split('\n')
+        d = {}
+        for line in lines:
+            port, val = line.split(".", 1)
+            d[str(port).strip()] = val[2:]
+        return d
+    except Exception as e:
+        return {'error': e.message}
+
+def get_lightfield(numa):
+    '''
+    VPD output
+    ----------
+    when lightfield exist and its version above 3xx, 34x:
+    "Read parameters:    02 01 10 29 18 10 29 02 ae 0a 01 18 03 ff ff ff 01 18 10 22 "
+
+    Otherwise it is empty and to err stream we get
+    "lf_pci_dev_init failed: found no device
+    lf_pci_dev_init failed"
+    '''
+    try:
+        r = sh.run("/root/inaugurator/inaugurator/execs/VPD -r 20 -n %s" % str(numa)).strip()
+        if not r:
+            return 'VPD failed'
+        header, registers = r.split(':',1)
+        return {header.strip() : registers.strip()}
+    except Exception as e:
+        return {'error': e.message}
+
+
 def _lshw_json_fix(output):
     edited = re.sub("}\s*{", "},{", str(output))
     edited = edited.strip().strip(',')
@@ -81,6 +117,11 @@ class HWinfo:
                 "ssd": get_ssds(),
                 "memory": get_memory(),
                 "nvme_list": get_nvme_list(),
-                "loaded_nvme_dev": get_loaded_nvme_devices()
+                "loaded_nvme_dev": get_loaded_nvme_devices(),
+                "lightfield":{
+                    "numa0": get_lightfield(0),
+                    "numa1": get_lightfield(1),
+                    "lspci": get_lspci_lf(),
+                    },
                 }
         return data
