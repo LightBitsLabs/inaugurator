@@ -1,6 +1,7 @@
 from inaugurator import sh
 import json
 import re
+from subprocess import CalledProcessError
 
 
 def get_network():
@@ -79,6 +80,8 @@ def get_lspci_lf():
             port, val = line.split(".", 1)
             lf_pci_lst[str(port).strip()] = val[2:]
         return lf_pci_lst
+    except CalledProcessError as e:
+        return {'errcode': e.returncode, 'error': e.output}
     except Exception as e:
         return {'error': e.message}
 
@@ -100,6 +103,10 @@ def get_lightfield(numa):
             return 'VPD failed'
         header, registers = r.split(':', 1)
         return {header.strip(): registers.strip()}
+    except CalledProcessError as e:
+        if 'no device' in e.output:
+            return {'errcode': e.returncode, 'error': 'found no device'}
+        return {'errcode': e.returncode, 'error': e.output}
     except Exception as e:
         return {'error': e.message}
 
