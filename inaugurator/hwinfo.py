@@ -74,11 +74,11 @@ def get_lspci_lf():
     try:
         r = sh.run('lspci|grep -iE "8764|1d9a"')
         lines = r.strip().split('\n')
-        d = {}
+        lf_pci_lst = {}
         for line in lines:
             port, val = line.split(".", 1)
-            d[str(port).strip()] = val[2:]
-        return d
+            lf_pci_lst[str(port).strip()] = val[2:]
+        return lf_pci_lst
     except Exception as e:
         return {'error': e.message}
 
