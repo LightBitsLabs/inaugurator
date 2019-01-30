@@ -31,6 +31,7 @@ def get_ssds():
     except Exception as e:
         return {'error': e.message}
 
+
 def get_nvme_list():
     try:
         r = sh.run("nvme list -o json")
@@ -38,12 +39,14 @@ def get_nvme_list():
     except Exception as e:
         return {'error': e.message}
 
+
 def get_loaded_nvme_devices():
     try:
         r = sh.run("ls /dev | grep nvme")
         return r.split("\n")[:-1]
     except Exception as e:
         return {'error': e.message}
+
 
 def get_memory():
     '''
@@ -79,6 +82,7 @@ def get_lspci_lf():
     except Exception as e:
         return {'error': e.message}
 
+
 def get_lightfield(numa):
     '''
     VPD output
@@ -94,8 +98,8 @@ def get_lightfield(numa):
         r = sh.run("/root/inaugurator/inaugurator/execs/VPD -r 20 -n %s" % str(numa)).strip()
         if not r:
             return 'VPD failed'
-        header, registers = r.split(':',1)
-        return {header.strip() : registers.strip()}
+        header, registers = r.split(':', 1)
+        return {header.strip(): registers.strip()}
     except Exception as e:
         return {'error': e.message}
 
@@ -118,7 +122,7 @@ class HWinfo:
                 "memory": get_memory(),
                 "nvme_list": get_nvme_list(),
                 "loaded_nvme_dev": get_loaded_nvme_devices(),
-                "lightfield":{
+                "lightfield": {
                     "numa0": get_lightfield(0),
                     "numa1": get_lightfield(1),
                     "lspci": get_lspci_lf(),
