@@ -58,6 +58,7 @@ def getExistingConfiguration(destUserSettingsFilename):
 
 def updateGrubConf(serialDevices, destination, passThroughArgs):
     destUserSettingsFilename = getUserSettingFileName(destination)
+    logging.info("destUserSettingsFilename : %s" % destUserSettingsFilename)
     existingConfiguration = getExistingConfiguration(destUserSettingsFilename)
     with open(destUserSettingsFilename, 'wb') as default_grub:
         modifyingGrubConf(default_grub,
@@ -79,8 +80,7 @@ def install(targetDevice, destination):
     prefix = grub_prefix(destination)
     if prefix is None:
         raise Exception("Failed to install grub boot menu grub tools not found")
-
-    chrootScript = '%(prefix)s-install %(targetDevice)s && %(prefix)s-mkconfig > /boot/%(prefix)s/grub.cfg' % dict(
-        prefix=prefix, targetDevice=targetDevice)
+    chrootScript = '%(prefix)s-install --target=x86_64-efi --efi-directory=%(targetDevice)s --bootloader-id=GRUB && %(prefix)s-mkconfig > /boot/%(prefix)s/grub.cfg' %\
+                       dict(prefix=prefix, targetDevice=targetDevice)
 
     sh.run("/usr/sbin/busybox chroot %s sh -c '%s'" % (destination, chrootScript))

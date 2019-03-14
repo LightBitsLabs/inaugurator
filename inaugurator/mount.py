@@ -38,7 +38,7 @@ class Mount:
             options = "-o noatime,data=writeback"
         else:
             options = ""
-        sh.run("/usr/sbin/busybox mount -t %s %s %s %s" % (fs_type, options, partitionPath, mountPoint))
+        sh.run("/usr/sbin/busybox mount %s %s %s" % (options, partitionPath, mountPoint))
         yield mountPoint  #DROR
         sh.run("/usr/sbin/busybox umount %s" % mountPoint)
 

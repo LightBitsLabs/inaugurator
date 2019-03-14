@@ -25,6 +25,8 @@ RUN dnf install -y \
     lshw \
     pciutils \
     rsync \
+    grub2 \
+    efibootmgr \
     busybox && \
     dnf -y clean all
 

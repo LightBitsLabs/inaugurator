@@ -187,7 +187,10 @@ class Ceremony:
             sh.run("rm -rf %s/*; sync" % bootDestination)  # LBM1-4920
             sh.run("rsync -rlpgDS --delete-before %s/boot/ %s/" % (destination, bootDestination))
         with self._mountOp.mountBootInsideRoot():
+
             serialDevices = self._getSerialDevices()
+            logging.info("serial_device: %s, \ndestination: %s, \n"
+                         "target_device: %s,  \nself._args.inauguratorPassthrough: %s" % (serialDevices, destination, self._targetDevice, self._args.inauguratorPassthrough))
             if serialDevices:
                 logging.info("Overriding GRUB2 user settings to set serial devices to '%(devices)s'...",
                              dict(devices=serialDevices))
@@ -333,7 +336,8 @@ class Ceremony:
         self._loadKernel = loadkernel.LoadKernel()
         self._loadKernel.fromBootPartitionGrubConfig(
             grubConfig=self._grubConfig,
-            bootPath=os.path.join(destination, "boot"), rootPartition=self._mountOp.rootPartition())
+            bootPath=destination, rootPartition=self._mountOp.rootPartition())
+            # bootPath=os.path.join(destination, "boot"), rootPartition=self._mountOp.rootPartition())
 
     def _doOsmosisFromSource(self, destination):
         cleanup = osmosiscleanup.OsmosisCleanup(destination, objectStorePath=self._localObjectStore)
