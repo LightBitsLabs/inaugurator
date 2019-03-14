@@ -56,14 +56,15 @@ class Mount:
 
     @contextlib.contextmanager
     def mountBootInsideRoot(self):
-        sh.run("/usr/sbin/busybox mount -t fat32 %s %s/boot/efi" % (self._bootPartition, self._ROOT_MOUNT_POINT))  #DROR
+        sh.run("mkdir -p %s/boot/efi" % self._ROOT_MOUNT_POINT)
+        sh.run("/usr/sbin/busybox mount %s %s/boot/efi" % (self._bootPartition, self._ROOT_MOUNT_POINT))  #DROR
         # sh.run("/usr/sbin/busybox mount -t ext4 %s %s/boot" % (self._bootPartition, self._ROOT_MOUNT_POINT))  #DROR
         sh.run("/usr/sbin/busybox cp -a /dev/* %s/dev/" % self._ROOT_MOUNT_POINT)
         sh.run("/usr/sbin/busybox mount -t proc none %s/proc" % self._ROOT_MOUNT_POINT)
         yield self._ROOT_MOUNT_POINT
         sh.run("/usr/sbin/busybox umount %s/proc" % self._ROOT_MOUNT_POINT)
         # sh.run("/usr/sbin/busybox umount %s/boot" % self._ROOT_MOUNT_POINT)
-        sh.run("/usr/sbin/busybox unmount %s/boot/efi" % self._ROOT_MOUNT_POINT)  #DROR
+        sh.run("/usr/sbin/busybox umount %s/boot/efi" % self._ROOT_MOUNT_POINT)  #DROR
 
     def _correctEXT4Errors(self, device):
         try:
