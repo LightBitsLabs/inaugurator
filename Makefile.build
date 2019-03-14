@@ -101,12 +101,14 @@ build/inaugurator.thin.initrd.dir: ${PYTHON_DIST_LOCAL_PATH} build/osmosis-1.0.l
 	DEST=$@.tmp sh/relative_copy_executable.sh /bin/lsblk
 	DEST=$@.tmp sh/relative_copy_executable.sh /bin/python2.7
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/busybox
+	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/fatlabel
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/kexec
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/ifconfig
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/route
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/sfdisk
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/parted
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/mkfs.ext4
+	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/mkfs.vfat
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/mkswap
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/ip
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/ethtool
@@ -115,6 +117,7 @@ build/inaugurator.thin.initrd.dir: ${PYTHON_DIST_LOCAL_PATH} build/osmosis-1.0.l
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/lvm
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/lvmetad
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/fsck.ext4
+	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/fsck.vfat
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/bin/rsync
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/nvme
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/lshw
