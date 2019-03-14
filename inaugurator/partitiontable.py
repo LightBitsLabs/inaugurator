@@ -15,9 +15,10 @@ class PartitionTable:
         createRoot=10)
     VOLUME_GROUP = "inaugurator"
     LAYOUT_SCHEMES = dict(GPT=dict(partitions=dict(bios_boot=dict(sizeMB=2, set_flags="bios_grub", flags="bios_grub"),
-                                                   boot=dict(sizeMB=1024, fs="ext4", flags="boot, esp", set_flags="boot"),
+                                                   boot=dict(sizeMB=1024, fs="ext4", flags="legacy_boot", set_flags="legacy_boot"),
+                                                   bootefi=dict(sizeMB=1024, fs="fat32", flags="boot, esp", set_flags="boot"),
                                                    lvm=dict(set_flags="lvm", flags="lvm", sizeMB="fillUp")),
-                                   order=("bios_boot", "boot", "lvm")),
+                                   order=("bios_boot", "boot", "bootefi", "lvm")),
                           MBR=dict(partitions=dict(boot=dict(sizeMB=1024, fs="ext4", set_flags="boot", flags="boot"),
                                                    lvm=dict(set_flags="lvm", flags="lvm", sizeMB="fillUp")),
                                    order=("boot", "lvm")))
@@ -51,6 +52,8 @@ class PartitionTable:
         sh.run(script)
         self._setFlags()
         sh.run("busybox mdev -s")
+        sh.run("mkfs.vfat -F32 %s" % self._getPartitionPath("bootefi"))  # DROR
+        sh.run("fatlabel %s BOOTEFI" % self._getPartitionPath("bootefi"))  # DROR
         sh.run("mkfs.ext4 %s -L BOOT" % self._getPartitionPath("boot"))
         try:
             sh.run("lvm vgremove -f %s" % (self.VOLUME_GROUP, ))
@@ -96,16 +99,21 @@ class PartitionTable:
             biosBootEnd = biosBootStart + self._physicalPartitions["bios_boot"]["sizeMB"]
             bootStart = biosBootEnd
             bootEnd = bootStart + self._physicalPartitions["boot"]["sizeMB"]
+            efibootStart = bootEnd
+            efibootEnd = efibootStart + self._physicalPartitions["bootefi"]["sizeMB"]
             script = "parted -s %(device)s -- " \
                      "mklabel gpt mkpart primary ext4 %(biosBootStart)sMiB %(biosBootEnd)sMiB " \
                      "mkpart primary ext4 %(bootStart)sMiB %(bootEnd)sMiB " \
+                     "mkpart primary fat32 %(efibootStart)sMiB %(efibootEnd)sMiB " \
                      "mkpart primary ext4 %(lvmStart)sMiB -1" % \
                 dict(device=self._device,
                      biosBootStart=biosBootStart,
                      biosBootEnd=biosBootEnd,
                      bootStart=bootStart,
                      bootEnd=bootEnd,
-                     lvmStart=bootEnd)
+                     efibootStart=efibootStart,
+                     efibootEnd=efibootEnd,
+                     lvmStart=efibootEnd)
         return script
 
     def _setFlags(self):
@@ -379,4 +387,4 @@ class PartitionTable:
         return "%(device)s%(partitionNr)s" % dict(device=self._device, partitionNr=partitionNr)
 
     def getBootPartitionPath(self):
-        return self._getPartitionPath("boot")
+        return self._getPartitionPath("bootefi") #DROR
