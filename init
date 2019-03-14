@@ -15,6 +15,7 @@ echo ifconfig -a:
 /usr/sbin/busybox modprobe ahci
 /usr/sbin/busybox modprobe ext4
 /usr/sbin/busybox modprobe fat
+/usr/sbin/busybox modprobe vfat
 /usr/sbin/busybox modprobe nvme
 wait
 /usr/sbin/busybox mdev -s
