@@ -387,4 +387,9 @@ class PartitionTable:
         return "%(device)s%(partitionNr)s" % dict(device=self._device, partitionNr=partitionNr)
 
     def getBootPartitionPath(self):
-        return self._getPartitionPath("bootefi") #DROR
+        return self._getPartitionPath("bootefi")
+
+    def getBootPartitionLegacyPath(self):
+        part_path = self._getPartitionPath("boot")
+        print "getBootPartitionLegacyPath is %s" % repr(part_path)
+        return part_path

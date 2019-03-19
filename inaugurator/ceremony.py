@@ -87,6 +87,7 @@ class Ceremony:
         sh.logFilepath = self._args.inauguratorLogfilePath
         self._before = time.time()
         self._bootPartitionPath = None
+        self._bootPartitionLegacyPath = None
 
     def ceremony(self):
         self._makeSureDiskIsMountable()
@@ -162,6 +163,7 @@ class Ceremony:
             partitionTable.clear()
         partitionTable.verify()
         self._bootPartitionPath = partitionTable.getBootPartitionPath()
+        self._bootPartitionLegacyPath = partitionTable.getBootPartitionLegacyPath()
 
     def _configureETC(self, destination):
         self._etcLabelFile.write(self._label)
@@ -186,11 +188,13 @@ class Ceremony:
         with self._mountOp.mountBoot() as bootDestination:
             sh.run("rm -rf %s/*; sync" % bootDestination)  # LBM1-4920
             sh.run("rsync -rlpgDS --delete-before %s/boot/ %s/" % (destination, bootDestination))
+
         with self._mountOp.mountBootInsideRoot():
 
             serialDevices = self._getSerialDevices()
             logging.info("serial_device: %s, \ndestination: %s, \n"
-                         "target_device: %s,  \nself._args.inauguratorPassthrough: %s" % (serialDevices, destination, self._targetDevice, self._args.inauguratorPassthrough))
+                         "target_device: %s,  \nself._args.inauguratorPassthrough: %s" %
+                         (serialDevices, destination, self._targetDevice, self._args.inauguratorPassthrough))
             if serialDevices:
                 logging.info("Overriding GRUB2 user settings to set serial devices to '%(devices)s'...",
                              dict(devices=serialDevices))
@@ -199,7 +203,8 @@ class Ceremony:
                              "redirect the console output to (default values in the label will be used).")
             grub.updateGrubConf(serialDevices, destination, self._args.inauguratorPassthrough)
             logging.info("Installing GRUB2...")
-            grub.install(self._targetDevice, destination)
+            # grub.install(self._targetDevice, destination)
+            grub.install(self._mountOp.getBootMountPoint(), destination)
             logging.info("Reading newly generated GRUB2 configuration file for later use...")
             grub_prefix = grub.grub_prefix(destination)
             assert grub_prefix is not None
@@ -331,6 +336,7 @@ class Ceremony:
         self._mountOp = mount.Mount(self._targetDevice)
         assert self._bootPartitionPath is not None, "Please initialize boot partition path first"
         self._mountOp.setBootPartitionPath(self._bootPartitionPath)
+        self._mountOp.setBootPartitionLegacyPath(self._bootPartitionLegacyPath)
 
     def _loadKernelForKexecing(self, destination):
         self._loadKernel = loadkernel.LoadKernel()

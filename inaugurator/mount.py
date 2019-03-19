@@ -11,6 +11,7 @@ class Mount:
 
     def __init__(self, targetDevice):
         self._bootPartition = None
+        self._bootPartitionLegacy = None
         self._swapPartition = "/dev/%s/swap" % partitiontable.PartitionTable.VOLUME_GROUP
         self._rootPartition = "/dev/%s/root" % partitiontable.PartitionTable.VOLUME_GROUP
         self._osmosisCachePartition = "/dev/%s/osmosis-cache" % partitiontable.PartitionTable.VOLUME_GROUP
@@ -23,6 +24,12 @@ class Mount:
 
     def setBootPartitionPath(self, partitionPath):
         self._bootPartition = partitionPath
+
+    def setBootPartitionLegacyPath(self, partitionPath):
+        self._bootPartitionLegacy = partitionPath
+
+    def getBootMountPoint(self):
+        return self._BOOT_MOUNT_POINT
 
     def swapPartition(self):
         return self._swapPartition
@@ -56,15 +63,21 @@ class Mount:
 
     @contextlib.contextmanager
     def mountBootInsideRoot(self):
+        sh.run("/usr/sbin/busybox mount -t ext4 %s %s/boot" % (self._bootPartitionLegacy, self._ROOT_MOUNT_POINT))  #DROR
         sh.run("mkdir -p %s/boot/efi" % self._ROOT_MOUNT_POINT)
         sh.run("/usr/sbin/busybox mount %s %s/boot/efi" % (self._bootPartition, self._ROOT_MOUNT_POINT))  #DROR
-        # sh.run("/usr/sbin/busybox mount -t ext4 %s %s/boot" % (self._bootPartition, self._ROOT_MOUNT_POINT))  #DROR
         sh.run("/usr/sbin/busybox cp -a /dev/* %s/dev/" % self._ROOT_MOUNT_POINT)
         sh.run("/usr/sbin/busybox mount -t proc none %s/proc" % self._ROOT_MOUNT_POINT)
+        sh.run("/usr/sbin/busybox mount -o rbind /sys %s/sys" % self._ROOT_MOUNT_POINT)
+        sh.run("/usr/sbin/busybox mount -o rbind /run %s/run" % self._ROOT_MOUNT_POINT) #DD
+        sh.run("/usr/sbin/busybox mount -o rbind /sys/firmware/efi/efivars %s/sys/firmware/efi/efivars" % self._ROOT_MOUNT_POINT)
         yield self._ROOT_MOUNT_POINT
+        sh.run("/usr/sbin/busybox umount %s/sys/firmware/efi/efivars" % self._ROOT_MOUNT_POINT)
+        sh.run("/usr/sbin/busybox umount %s/run" % self._ROOT_MOUNT_POINT) #DD
+        sh.run("/usr/sbin/busybox umount %s/sys" % self._ROOT_MOUNT_POINT)
         sh.run("/usr/sbin/busybox umount %s/proc" % self._ROOT_MOUNT_POINT)
-        # sh.run("/usr/sbin/busybox umount %s/boot" % self._ROOT_MOUNT_POINT)
         sh.run("/usr/sbin/busybox umount %s/boot/efi" % self._ROOT_MOUNT_POINT)  #DROR
+        sh.run("/usr/sbin/busybox umount %s/boot" % self._ROOT_MOUNT_POINT)
 
     def _correctEXT4Errors(self, device):
         try:
