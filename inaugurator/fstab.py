@@ -11,4 +11,5 @@ _TEMPLATE = """
 LABEL=ROOT /                       ext4    defaults        1 1
 LABEL=SWAP swap                    swap    defaults        0 0
 LABEL=BOOT /boot                   ext4    defaults        1 2
+LABEL=BOOTEFI /boot/efi            vfat    defaults        1 2
 """
