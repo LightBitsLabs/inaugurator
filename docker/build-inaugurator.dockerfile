@@ -25,6 +25,16 @@ RUN dnf install -y \
     lshw \
     pciutils \
     rsync \
+    grub2-efi-x64 \
+    grub2-tools \
+    grub2-tools-efi \
+    grub2-tools-extra \
+    grub2-common \
+    grub2-pc \
+    grub2-pc-modules \
+    grub2-efi-x64-modules \
+    grub2-efi-x64-cdboot \
+    efibootmgr \
     busybox && \
     dnf -y clean all
 
