@@ -87,6 +87,7 @@ class Ceremony:
         sh.logFilepath = self._args.inauguratorLogfilePath
         self._before = time.time()
         self._bootPartitionPath = None
+        self._bootPartitionLegacyPath = None
 
     def ceremony(self):
         self._makeSureDiskIsMountable()
@@ -162,6 +163,7 @@ class Ceremony:
             partitionTable.clear()
         partitionTable.verify()
         self._bootPartitionPath = partitionTable.getBootPartitionPath()
+        self._bootPartitionLegacyPath = partitionTable.getBootPartitionLegacyPath()
 
     def _configureETC(self, destination):
         self._etcLabelFile.write(self._label)
@@ -196,7 +198,7 @@ class Ceremony:
                              "redirect the console output to (default values in the label will be used).")
             grub.updateGrubConf(serialDevices, destination, self._args.inauguratorPassthrough)
             logging.info("Installing GRUB2...")
-            grub.install(self._targetDevice, destination)
+            grub.install(self._mountOp.getBootMountPoint(), destination)
             logging.info("Reading newly generated GRUB2 configuration file for later use...")
             grub_prefix = grub.grub_prefix(destination)
             assert grub_prefix is not None
@@ -328,12 +330,15 @@ class Ceremony:
         self._mountOp = mount.Mount(self._targetDevice)
         assert self._bootPartitionPath is not None, "Please initialize boot partition path first"
         self._mountOp.setBootPartitionPath(self._bootPartitionPath)
+        self._mountOp.setBootPartitionLegacyPath(self._bootPartitionLegacyPath)
 
     def _loadKernelForKexecing(self, destination):
         self._loadKernel = loadkernel.LoadKernel()
         self._loadKernel.fromBootPartitionGrubConfig(
             grubConfig=self._grubConfig,
-            bootPath=os.path.join(destination, "boot"), rootPartition=self._mountOp.rootPartition())
+            bootPath=destination,
+            rootPartition=self._mountOp.rootPartition()
+        )
 
     def _doOsmosisFromSource(self, destination):
         cleanup = osmosiscleanup.OsmosisCleanup(destination, objectStorePath=self._localObjectStore)
