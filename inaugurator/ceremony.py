@@ -222,7 +222,7 @@ class Ceremony:
             self._talkToServer = talktoserver.TalkToServer(
                 amqpURL=self._args.inauguratorServerAMQPURL, myID=self._args.inauguratorMyIDForServer)
             hwinfo = {'net': network.list_devices_info()}
-            self.send_hwinfo(self._args.inauguratorSelfTestServerUrl)
+            # self.send_hwinfo(self._args.inauguratorSelfTestServerUrl)
             self._talkToServer.checkIn(hwinfo=hwinfo)
             message = self._talkToServer.label()
             self._label = json.loads(message)['rootfs']
@@ -342,8 +342,8 @@ class Ceremony:
         self._loadKernel = loadkernel.LoadKernel()
         self._loadKernel.fromBootPartitionGrubConfig(
             grubConfig=self._grubConfig,
-            bootPath=destination, rootPartition=self._mountOp.rootPartition())
-            # bootPath=os.path.join(destination, "boot"), rootPartition=self._mountOp.rootPartition())
+            # bootPath=destination, rootPartition=self._mountOp.rootPartition())
+            bootPath=os.path.join(destination, "boot"), rootPartition=self._mountOp.rootPartition())
 
     def _doOsmosisFromSource(self, destination):
         cleanup = osmosiscleanup.OsmosisCleanup(destination, objectStorePath=self._localObjectStore)

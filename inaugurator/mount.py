@@ -6,7 +6,8 @@ import logging
 
 class Mount:
     _ROOT_MOUNT_POINT = "/destRoot"
-    _BOOT_MOUNT_POINT = "/boot/efi/"  #"/destBoot"
+    _BOOT_MOUNT_POINT = "/boot/efi/"
+    _BOOT_LEGACY_MOUNT_POINT = "/boot/"
     _OSMOSIS_CACHE_MOUNT_POINT = "/osmosisCache"
 
     def __init__(self, targetDevice):
@@ -54,7 +55,8 @@ class Mount:
 
     def mountBoot(self):
         assert self._bootPartition is not None, "Please initialize the boot partition path first"
-        return self._mountPartition(self._bootPartition, self._BOOT_MOUNT_POINT, fs_type='fat32')
+        return self._mountPartition(self._bootPartitionLegacy, self._BOOT_LEGACY_MOUNT_POINT, fs_type='ext4')
+        # return self._mountPartition(self._bootPartition, self._BOOT_MOUNT_POINT, fs_type='fat32')
 
     def mountOsmosisCache(self):
         return self._mountPartition(self._osmosisCachePartition,
