@@ -26,6 +26,7 @@ RUN dnf install -y \
     pciutils \
     rsync \
     ndctl \
+    dropbear \
     busybox && \
     dnf -y clean all
 

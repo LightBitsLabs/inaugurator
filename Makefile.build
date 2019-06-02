@@ -88,7 +88,8 @@ build/inaugurator.thin.initrd.dir: ${PYTHON_DIST_LOCAL_PATH} build/osmosis-1.0.l
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib64/python2.7/lib-dynload/*
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/lib64/python2.7/lib-dynload/_hashlib.so
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/lib64/libudev.so.1
-	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib64/libnss_dns*
+	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib64/libtommath*
+	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib64/libnss_*
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/share/hwdata/pci.ids
 	echo "Copying pika:"
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib/python2.7/site-packages/pika/*.py
@@ -113,6 +114,7 @@ build/inaugurator.thin.initrd.dir: ${PYTHON_DIST_LOCAL_PATH} build/osmosis-1.0.l
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/chroot
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/dosfslabel
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/lvm
+	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/dropbear
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/lvmetad
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/sbin/fsck.ext4
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/bin/ndctl
@@ -151,6 +153,7 @@ build/inaugurator.thin.initrd.dir: ${PYTHON_DIST_LOCAL_PATH} build/osmosis-1.0.l
 	depmod --basedir=$@.tmp $(KERNEL_VERSION)
 	echo "Misc"
 	DEST=$@.tmp sh/relative_copy_glob.sh etc/*
+	DEST=$@.tmp sh/relative_copy_glob.sh etc/dropbear/*
 	DEST=$@.tmp sh/relative_copy_glob.sh init
 	mkdir -p $@.tmp/run/udev
 	mkdir -p $@.tmp/run/lvm
