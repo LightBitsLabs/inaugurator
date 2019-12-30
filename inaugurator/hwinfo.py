@@ -12,7 +12,7 @@ def get_cpus():
             ret.update({prop['field'].strip(':').strip('(s)'): prop['data']})
         return ret
     except Exception as e:
-        return {'error': e.message}
+        return {'error': e.message, 'command': sh.run("lscpu")}
 
 
 def get_nvdimm():
@@ -31,7 +31,7 @@ def get_nvme_list():
         r = sh.run("nvme list -o json")
         return json.loads(r)
     except Exception as e:
-        return {'error': e.message}
+        return {'error': e.message, 'command':  sh.run("nvme list")}
 
 
 def get_ssd_per_numa():
@@ -70,7 +70,7 @@ def get_lspci_lf():
             return {}
         return {'errcode': e.returncode, 'error': e.output}
     except Exception as e:
-        return {'error': e.message}
+        return {'error': e.message, 'command':  sh.run('lspci|grep -iE "8764|1d9a"')}
 
 
 def get_lshw():
@@ -78,7 +78,7 @@ def get_lshw():
         r = sh.run("lshw -json")
         return json.loads(r)
     except Exception as e:
-        return {}
+        return {'error': e.message, 'command':   sh.run("lshw")}
 
 
 def numa_mem():
@@ -143,7 +143,7 @@ def get_lightfield(numa):
             return {'errcode': e.returncode, 'error': 'found no device'}
         return {'errcode': e.returncode, 'error': e.output}
     except Exception as e:
-        return {'error': e.message}
+        return {'error': e.message, 'command':   sh.run("/root/inaugurator/inaugurator/execs/VPD -r 20 -n %s" % str(numa))}
 
 
 def programtool_output(numa_idx):
