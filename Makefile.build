@@ -23,7 +23,7 @@ define_build_host_msg:
 
 
 .PHONY: build
-build: build/inaugurator.vmlinuz build/inaugurator.thin.initrd.img ${PYTHON_DIST_PATH}
+build: build/inaugurator.vmlinuz build/inaugurator.fat.initrd.img ${PYTHON_DIST_PATH}
 
 .PHONY: build_python_dist_locally
 build_python_dist_locally:
