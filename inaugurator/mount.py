@@ -5,8 +5,8 @@ import logging
 
 
 class Mount:
-    _ROOT_MOUNT_POINT = "/destRoot"
-    _BOOT_MOUNT_POINT = "/destBoot"
+    ROOT_MOUNT_POINT = "/destRoot"
+    BOOT_MOUNT_POINT = "/destBoot"
     _OSMOSIS_CACHE_MOUNT_POINT = "/osmosisCache"
 
     def __init__(self, targetDevice):
@@ -40,11 +40,11 @@ class Mount:
         sh.run("/usr/sbin/busybox umount %s" % mountPoint)
 
     def mountRoot(self):
-        return self._mountPartition(self._rootPartition, self._ROOT_MOUNT_POINT, optimizePerformance=True)
+        return self._mountPartition(self._rootPartition, self.ROOT_MOUNT_POINT, optimizePerformance=True)
 
     def mountBoot(self):
         assert self._bootPartition is not None, "Please initialize the boot partition path first"
-        return self._mountPartition(self._bootPartition, self._BOOT_MOUNT_POINT)
+        return self._mountPartition(self._bootPartition, self.BOOT_MOUNT_POINT)
 
     def mountOsmosisCache(self):
         return self._mountPartition(self._osmosisCachePartition,
@@ -54,12 +54,12 @@ class Mount:
     @contextlib.contextmanager
     def mountBootInsideRoot(self):
         sh.run("/usr/sbin/busybox mount -t ext4 %s %s/boot" % (
-            self._bootPartition, self._ROOT_MOUNT_POINT))
-        sh.run("/usr/sbin/busybox cp -a /dev/* %s/dev/" % self._ROOT_MOUNT_POINT)
-        sh.run("/usr/sbin/busybox mount -t proc none %s/proc" % self._ROOT_MOUNT_POINT)
-        yield self._ROOT_MOUNT_POINT
-        sh.run("/usr/sbin/busybox umount %s/proc" % self._ROOT_MOUNT_POINT)
-        sh.run("/usr/sbin/busybox umount %s/boot" % self._ROOT_MOUNT_POINT)
+            self._bootPartition, self.ROOT_MOUNT_POINT))
+        sh.run("/usr/sbin/busybox cp -a /dev/* %s/dev/" % self.ROOT_MOUNT_POINT)
+        sh.run("/usr/sbin/busybox mount -t proc none %s/proc" % self.ROOT_MOUNT_POINT)
+        yield self.ROOT_MOUNT_POINT
+        sh.run("/usr/sbin/busybox umount %s/proc" % self.ROOT_MOUNT_POINT)
+        sh.run("/usr/sbin/busybox umount %s/boot" % self.ROOT_MOUNT_POINT)
 
     def _correctEXT4Errors(self, device):
         try:
