@@ -394,11 +394,11 @@ class Ceremony:
                 print sh.run('busybox echo 1 > {}'.format(queueDepthPath))
                 print sh.run('busybox echo "{} is now:" '.format(queueDepthPath))
                 print sh.run('busybox cat {}'.format(queueDepthPath))
-            except Exception, ex:
+            except Exception as ex:
                 print ex.message
 
     def send_hwinfo(self, url):
-        with open('/destRoot/hwinfo_defaults', 'w') as f:
+        with open(os.path.join(mount.Mount.ROOT_MOUNT_POINT, 'hwinfo_defaults'), 'w') as f:
             json.dump({'mac': self._args.inauguratorUseNICWithMAC, 'ip': self._args.inauguratorIPAddress,
                        'id': self._args.inauguratorMyIDForServer, 'url': url}, f)
         try:
