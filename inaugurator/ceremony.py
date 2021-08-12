@@ -238,6 +238,7 @@ class Ceremony:
         try:
             for attempt in range(ATTEMPTS):
                 try:
+                    logging.info("_osmosFromNetwork attempt #%d" % attempt)
                     if attempt == 0:
                         self._checkoutOsmosFromNetwork(destination,
                                                        self._args.inauguratorOsmosisObjectStores,
