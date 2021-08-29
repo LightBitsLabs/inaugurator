@@ -101,6 +101,7 @@ class TalkToServerSpooler(threading.Thread):
         body = json.dumps(status)
         self._channel.basic_publish(exchange=self._statusExchange, routing_key='', body=body)
         self._channel.basic_publish(exchange=self._newStatusExchange, routing_key=self._statusRoutingKey, body=body)
+        self._try_raise_connection_error_once()
 
     def _labelCallback(self, channel, method, properties, body):
         logging.info("Received message %(message)s",dict(message=body))
