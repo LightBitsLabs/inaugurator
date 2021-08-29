@@ -21,6 +21,7 @@ class TalkToServerSpooler(threading.Thread):
         self._isFinished = False
         self._statusRoutingKey = statusRoutingKey
         self._amqpURL = amqpURL
+        self._wasReconnected = False
         self._connect(amqpURL)
         threading.Thread.start(self)
 
