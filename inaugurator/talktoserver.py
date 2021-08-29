@@ -12,6 +12,7 @@ class CannotReuseTalkToServerAfterDone(Exception):
 class TalkToServerSpooler(threading.Thread):
     def __init__(self, amqpURL, statusExchange, labelExchange, newStatusExchange, statusRoutingKey):
         super(TalkToServerSpooler, self).__init__()
+        self._testRan = False
         self.daemon = True
         self._statusExchange = statusExchange
         self._newStatusExchange = newStatusExchange
