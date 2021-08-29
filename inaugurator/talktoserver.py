@@ -12,7 +12,6 @@ class CannotReuseTalkToServerAfterDone(Exception):
 class TalkToServerSpooler(threading.Thread):
     def __init__(self, amqpURL, statusExchange, labelExchange, newStatusExchange, statusRoutingKey):
         super(TalkToServerSpooler, self).__init__()
-        self._testRan = False
         self.daemon = True
         self._statusExchange = statusExchange
         self._newStatusExchange = newStatusExchange
@@ -77,12 +76,14 @@ class TalkToServerSpooler(threading.Thread):
         logging.info("Inaugurator Publish Spooler is connected to the RabbitMQ broker.")
 
     def _reconnect(self):
+        # should run in Connection thread
         self._wasReconnected = True
-        self._isReconnecting = True
+        self._isReconnecting = True  # set reconnecting to stup main loop
         logging.info("Trying to reconnect RabbitMQ.")
         try:
-            self.cleanUpResources(False)
+            self._cleanUpResources(set_as_finished=False)
         except Exception as e:
+            # cleanup is not a must on reconnection we can ignore it
             logging.exception("Couldnt cleanup resources. ignoring...")
         try:
             self._connect(self._amqpURL)
@@ -90,18 +91,10 @@ class TalkToServerSpooler(threading.Thread):
             logging.exception("Couldnt to reconnect RabbitMQ.")
         self._isReconnecting = False
 
-    def _try_raise_connection_error_once(self):
-        if self._testRan:
-            return
-        self._testRan = True
-        raise pika.exceptions.ConnectionClosed()
-
     def _publishStatus(self, **status):
-        self._try_raise_connection_error_once()
         body = json.dumps(status)
         self._channel.basic_publish(exchange=self._statusExchange, routing_key='', body=body)
         self._channel.basic_publish(exchange=self._newStatusExchange, routing_key=self._statusRoutingKey, body=body)
-        self._try_raise_connection_error_once()
 
     def _labelCallback(self, channel, method, properties, body):
         logging.info("Received message %(message)s",dict(message=body))
@@ -122,8 +115,8 @@ class TalkToServerSpooler(threading.Thread):
             logging.info("Connection closed.")
         except:
             logging.exception("An error occurred while closing the connection. ignoring.")
-        logging.info('setting _isFinished to %(is_finished)s', dict(is_finished=set_as_finished))
-        self._isFinished = bool(set_as_finished)
+        if set_as_finished:
+            self._isFinished = True
 
     def _getLabel(self, **kwargs):
         self._channel.basic_consume(self._labelCallback, queue=self._labelQueue, no_ack=True)
