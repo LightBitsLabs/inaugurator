@@ -79,6 +79,7 @@ class TalkToServerSpooler(threading.Thread):
         try:
             logging.info("Trying to reconnect RabbitMQ.")
             self._cleanUpResources()
+            self._isFinished = False
             self._connect(self._amqpURL)
         except Exception as e:
             logging.exception("Couldnt to reconnect RabbitMQ.")
@@ -136,7 +137,7 @@ class TalkToServerSpooler(threading.Thread):
         if not self._wasReconnected \
                 and isinstance(returnValue.exception, pika.exceptions.ConnectionClosed):
             self._reconnect()
-            return self._executeCommandInConnectionThread(function, kwargs)
+            return self._executeCommandInConnectionThread(function, **kwargs)
         elif returnValue.exception is not None:
             raise returnValue.exception
         return returnValue.data
