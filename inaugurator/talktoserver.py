@@ -78,7 +78,7 @@ class TalkToServerSpooler(threading.Thread):
         self._wasReconnected = True
         try:
             logging.info("Trying to reconnect RabbitMQ.")
-            self._cleanUpResources()
+            self.cleanUpResources()
             self._isFinished = False
             self._connect(self._amqpURL)
         except Exception as e:
