@@ -20,6 +20,7 @@ class TalkToServerSpooler(threading.Thread):
         self._queue = Queue.Queue()
         self._isFinished = False
         self._statusRoutingKey = statusRoutingKey
+        self._amqpURL = amqpURL
         self._connect(amqpURL)
         threading.Thread.start(self)
 
@@ -32,7 +33,8 @@ class TalkToServerSpooler(threading.Thread):
     def cleanUpResources(self):
         return self._executeCommandInConnectionThread(self._cleanUpResources)
 
-    def run(self):
+
+    def run(self): # being invoked by threading.Thread.start()
         logging.info("Inaugurator TalkToServer Spooler is waiting for commands...")
         while True:
             try:
@@ -69,6 +71,15 @@ class TalkToServerSpooler(threading.Thread):
         logging.info("Binding label queue %(queue)s with labels exchange...", dict(queue=self._labelQueue))
         self._channel.queue_bind(queue=self._labelQueue, exchange="inaugurator_labels", routing_key=self._labelExchange)
         logging.info("Inaugurator Publish Spooler is connected to the RabbitMQ broker.")
+
+    def _reconnect(self):
+        self._wasReconnected = True
+        try:
+            logging.info("Trying to reconnect RabbitMQ.")
+            self._cleanUpResources()
+            self._connect(self._amqpURL)
+        except Exception as e:
+            logging.exception("Couldnt to reconnect RabbitMQ.")
 
     def _publishStatus(self, **status):
         body = json.dumps(status)
@@ -113,7 +124,11 @@ class TalkToServerSpooler(threading.Thread):
         returnValue = ReturnValue()
         self._queue.put((finishedEvent, function, kwargs, returnValue), block=True)
         finishedEvent.wait()
-        if returnValue.exception is not None:
+        if not self._wasReconnected \
+                and isinstance(returnValue.exception, pika.exceptions.ConnectionClosed):
+            self._reconnect()
+            return self._executeCommandInConnectionThread(function, kwargs)
+        elif returnValue.exception is not None:
             raise returnValue.exception
         return returnValue.data
 
