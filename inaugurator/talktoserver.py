@@ -32,8 +32,8 @@ class TalkToServerSpooler(threading.Thread):
     def getLabel(self):
         return self._executeCommandInConnectionThread(self._getLabel)
 
-    def cleanUpResources(self):
-        return self._executeCommandInConnectionThread(self._cleanUpResources)
+    def cleanUpResources(self, set_as_finished=True):
+        return self._executeCommandInConnectionThread(self._cleanUpResources, set_as_finished)
 
 
     def run(self): # being invoked by threading.Thread.start()
@@ -78,8 +78,7 @@ class TalkToServerSpooler(threading.Thread):
         self._wasReconnected = True
         try:
             logging.info("Trying to reconnect RabbitMQ.")
-            self.cleanUpResources()
-            self._isFinished = False
+            self.cleanUpResources(False)
             self._connect(self._amqpURL)
         except Exception as e:
             logging.exception("Couldnt to reconnect RabbitMQ.")
@@ -101,7 +100,7 @@ class TalkToServerSpooler(threading.Thread):
         self._receivedLabel = body
         self._channel.stop_consuming()
 
-    def _cleanUpResources(self):
+    def _cleanUpResources(self, set_as_finished=True):
         logging.info("Deleting the label queue...")
         try:
             self._channel.queue_delete(queue=self._labelQueue)
@@ -114,7 +113,8 @@ class TalkToServerSpooler(threading.Thread):
             logging.info("Connection closed.")
         except:
             logging.exception("An error occurred while closing the connection. ignoring.")
-        self._isFinished = True
+        if set_as_finished:
+            self._isFinished = True
 
     def _getLabel(self, **kwargs):
         self._channel.basic_consume(self._labelCallback, queue=self._labelQueue, no_ack=True)
