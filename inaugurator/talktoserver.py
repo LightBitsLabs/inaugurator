@@ -32,8 +32,8 @@ class TalkToServerSpooler(threading.Thread):
     def getLabel(self):
         return self._executeCommandInConnectionThread(self._getLabel)
 
-    def cleanUpResources(self, **set_as_finished):
-        return self._executeCommandInConnectionThread(self._cleanUpResources, **set_as_finished)
+    def cleanUpResources(self, set_as_finished=True):
+        return self._executeCommandInConnectionThread(self._cleanUpResources, set_as_finished=set_as_finished)
 
 
     def run(self): # being invoked by threading.Thread.start()
@@ -100,7 +100,8 @@ class TalkToServerSpooler(threading.Thread):
         self._receivedLabel = body
         self._channel.stop_consuming()
 
-    def _cleanUpResources(self, **set_as_finished):
+    def _cleanUpResources(self, **kwargs):
+        set_as_finished = kwargs.get('set_as_finished')
         logging.info("Deleting the label queue...")
         try:
             self._channel.queue_delete(queue=self._labelQueue)
@@ -161,7 +162,7 @@ class TalkToServer:
     def done(self):
         logging.info("talking to server: done")
         self._spooler.publishStatus(status="done", id=self._myID)
-        self._spooler.cleanUpResources(True)
+        self._spooler.cleanUpResources()
 
     def label(self):
         return self._spooler.getLabel()
