@@ -20,6 +20,7 @@ class TalkToServerSpooler(threading.Thread):
         self._labelQueue = None
         self._queue = Queue.Queue()
         self._isFinished = False
+        self._isReconnecting = False
         self._statusRoutingKey = statusRoutingKey
         self._amqpURL = amqpURL
         self._wasReconnected = False
@@ -35,10 +36,11 @@ class TalkToServerSpooler(threading.Thread):
     def cleanUpResources(self, set_as_finished=True):
         return self._executeCommandInConnectionThread(self._cleanUpResources, set_as_finished=set_as_finished)
 
-
     def run(self): # being invoked by threading.Thread.start()
         logging.info("Inaugurator TalkToServer Spooler is waiting for commands...")
         while True:
+            if self._isReconnecting:
+                continue
             try:
                 finishedEvent, command, kwargs, returnValue = self._queue.get(block=True, timeout=10)
             except Queue.Empty:
@@ -76,12 +78,14 @@ class TalkToServerSpooler(threading.Thread):
 
     def _reconnect(self):
         self._wasReconnected = True
+        self._isReconnecting = True
         try:
             logging.info("Trying to reconnect RabbitMQ.")
             self.cleanUpResources(False)
             self._connect(self._amqpURL)
         except Exception as e:
             logging.exception("Couldnt to reconnect RabbitMQ.")
+        self._isReconnecting = False
 
     def _try_raise_connection_error_once(self):
         if self._testRan:
