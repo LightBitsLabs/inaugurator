@@ -115,8 +115,7 @@ class TalkToServerSpooler(threading.Thread):
             logging.info("Connection closed.")
         except:
             logging.exception("An error occurred while closing the connection. ignoring.")
-        if set_as_finished:
-            self._isFinished = True
+        self._isFinished = set_as_finished
 
     def _getLabel(self, **kwargs):
         self._channel.basic_consume(self._labelCallback, queue=self._labelQueue, no_ack=True)
