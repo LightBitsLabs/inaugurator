@@ -79,9 +79,12 @@ class TalkToServerSpooler(threading.Thread):
     def _reconnect(self):
         self._wasReconnected = True
         self._isReconnecting = True
+        logging.info("Trying to reconnect RabbitMQ.")
         try:
-            logging.info("Trying to reconnect RabbitMQ.")
             self.cleanUpResources(False)
+        except Exception as e:
+            logging.exception("Couldnt cleanup resources. ignoring...")
+        try:
             self._connect(self._amqpURL)
         except Exception as e:
             logging.exception("Couldnt to reconnect RabbitMQ.")
