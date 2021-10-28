@@ -64,7 +64,7 @@ class TalkToServerSpooler(threading.Thread):
         logging.info("Declaring a RabbitMQ exchange %(exchange)s...", dict(exchange=self._labelExchange))
         self._channel.exchange_declare(exchange="inaugurator_labels", exchange_type='direct')
         logging.info("Declaring an exclusive RabbitMQ label queue...")
-        frame = self._channel.queue_declare(exclusive=True)
+        frame = self._channel.queue_declare('', exclusive=True)
         self._labelQueue = frame.method.queue
         logging.info("Binding label queue %(queue)s with labels exchange...", dict(queue=self._labelQueue))
         self._channel.queue_bind(queue=self._labelQueue, exchange="inaugurator_labels", routing_key=self._labelExchange)
@@ -96,7 +96,7 @@ class TalkToServerSpooler(threading.Thread):
         self._isFinished = True
 
     def _getLabel(self, **kwargs):
-        self._channel.basic_consume(self._labelCallback, queue=self._labelQueue, no_ack=True)
+        self._channel.basic_consume(self._labelQueue, self._labelCallback, auto_ack=True)
         self._channel.start_consuming()
         return self._receivedLabel
 
