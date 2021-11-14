@@ -261,9 +261,8 @@ class Ceremony:
                 except OsmosisTimeoutException as e:
                     failed_msg = "Failed _osmosFromNetwork due to Timeout. attempt #%d" % attempt
                     logging.info(failed_msg)
-                    self.try_to_remove_osmosis(destination)
-                    self._talk_to_server_falied_safe(failed_msg)
                     signal.alarm(0)
+                    e.message = failed_msg
                     raise e
                 except Exception as e:
                     if self._debugPort is not None and self._debugPort.wasRebootCalled():
@@ -284,10 +283,12 @@ class Ceremony:
         except:
             pass
 
-    def try_to_remove_osmosis(self, destination):
+    def try_to_remove_osmosis(self, destination,  do_hard_cleanup=False):
         try:
             objectStorePath = os.path.join(destination, "var", "lib", "osmosis", "objectstore")
             osmosiscleanup.OsmosisCleanup(destination, objectStorePath=objectStorePath).eraseEverything()
+            if do_hard_cleanup:
+                sh.run("busybox rm -fr %s/*" % destination)
         except:
             pass
 
@@ -369,15 +370,17 @@ class Ceremony:
             bootPath=os.path.join(destination, "boot"), rootPartition=self._mountOp.rootPartition())
 
     def _doOsmosisFromSource(self, destination):
-        cleanup = osmosiscleanup.OsmosisCleanup(destination, objectStorePath=self._localObjectStore)
         try:
             self._doOsmosisFromSourceUnsafe(destination)
+        except OsmosisTimeoutException as e:
+            self.try_to_remove_osmosis(destination, True)
+            self._talk_to_server_falied_safe(e.message)
         except Exception as e:
             logging.exception("Failed to osmosis from source. %(type)s, %(msg)s", dict(type=type(e), msg=e.message))
-            cleanup.eraseEverything()
-            sh.run("busybox rm -fr %s/*" % destination)
+            self.try_to_remove_osmosis(destination, True)
             if self._talkToServer:
                 self._talkToServer.progress(dict(state='warning', message=str(e)))
+
 
     def _raise_timeout_exception(signum, frame, args = None):
         raise OsmosisTimeoutException("SIGALRM Timeout was triggered")
