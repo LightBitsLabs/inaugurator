@@ -224,6 +224,7 @@ class Ceremony:
                 amqpURL=self._args.inauguratorServerAMQPURL, myID=self._args.inauguratorMyIDForServer)
             hwinfo = {'net': network.list_devices_info()}
             self.send_hwinfo(self._args.inauguratorSelfTestServerUrl)
+            self.get_osmosis_ip_from_selftest()
             if dirsize.check_storage_size_over_threshold(destination, DIR_THRESHOLD):
                 logging.info("dir: %s is over threshold: %s - cleaning osmosis" % (destination, str(DIR_THRESHOLD)))
                 self.try_to_remove_osmosis(destination)
@@ -240,7 +241,7 @@ class Ceremony:
                 try:
                     if attempt == 0:
                         self._checkoutOsmosFromNetwork(destination,
-                                                       self._args.inauguratorOsmosisObjectStores,
+                                                       self._osmosis_ip_port,
                                                        self._args.inauguratorWithLocalObjectStore,
                                                        self._localObjectStore,
                                                        self._args.inauguratorIgnoreDirs,
@@ -248,7 +249,7 @@ class Ceremony:
                                                        inspectErrors=True)
                     else:
                         self._checkoutOsmosFromNetwork(destination,
-                                                       self._args.inauguratorOsmosisObjectStores,
+                                                       self._osmosis_ip_port,
                                                        self._args.inauguratorWithLocalObjectStore,
                                                        self._localObjectStore,
                                                        self._args.inauguratorIgnoreDirs,
@@ -430,6 +431,17 @@ class Ceremony:
                 print sh.run('busybox cat {}'.format(queueDepthPath))
             except Exception, ex:
                 print ex.message
+
+    def get_osmosis_ip_from_selftest(self, url):
+        try:
+            osmosis_from_selftest = json.loads(requests.get(url))['osmosis_uri']
+            if osmosis_from_selftest is not None and osmosis_from_selftest is not "":
+                self._osmosis_ip_port = osmosis_from_selftest
+            else:
+                self._osmosis_ip_port = self._args.inauguratorOsmosisObjectStores
+        except Exception as e:
+            logging.info("self test get osmosis uri failed... %(type)s, %(msg)s", dict(type=type(e), msg=e.message))
+            self._osmosis_ip_port = self._args.inauguratorOsmosisObjectStores
 
     def send_hwinfo(self, url):
         with open('/destRoot/hwinfo_defaults', 'w') as f:
