@@ -224,7 +224,7 @@ class Ceremony:
                 amqpURL=self._args.inauguratorServerAMQPURL, myID=self._args.inauguratorMyIDForServer)
             hwinfo = {'net': network.list_devices_info()}
             self.send_hwinfo(self._args.inauguratorSelfTestServerUrl)
-            self.get_osmosis_ip_from_selftest()
+            self.get_osmosis_ip_from_selftest(self._args.inauguratorSelfTestServerUrl + "/services/osmosis_uri")
             if dirsize.check_storage_size_over_threshold(destination, DIR_THRESHOLD):
                 logging.info("dir: %s is over threshold: %s - cleaning osmosis" % (destination, str(DIR_THRESHOLD)))
                 self.try_to_remove_osmosis(destination)
@@ -433,15 +433,19 @@ class Ceremony:
                 print ex.message
 
     def get_osmosis_ip_from_selftest(self, url):
+        if not url.startswith("http://"):
+            url = "http://" + url
         try:
-            osmosis_from_selftest = json.loads(requests.get(url))['osmosis_uri']
-            if osmosis_from_selftest is not None and osmosis_from_selftest is not "":
+            osmosis_from_selftest = json.loads(requests.get(url).text)['osmosis_uri']
+            if osmosis_from_selftest:
                 self._osmosis_ip_port = osmosis_from_selftest
+                logging.info("Setting osmosis ip from selftest: %s", osmosis_from_selftest)
             else:
                 self._osmosis_ip_port = self._args.inauguratorOsmosisObjectStores
+                logging.info("Using osmosis ip from inauguratorOsmosisObjectStores: %s", self._osmosis_ip_port)
         except Exception as e:
-            logging.info("self test get osmosis uri failed... %(type)s, %(msg)s", dict(type=type(e), msg=e.message))
             self._osmosis_ip_port = self._args.inauguratorOsmosisObjectStores
+            logging.info("Selftest get osmosis uri failed... %s, %s. using: %s", type(e), e, self._osmosis_ip_port)
 
     def send_hwinfo(self, url):
         with open('/destRoot/hwinfo_defaults', 'w') as f:
