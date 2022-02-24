@@ -128,6 +128,7 @@ build/inaugurator.thin.initrd.dir: ${PYTHON_DIST_LOCAL_PATH} build/osmosis-1.0.l
 	DEST=$@.tmp sh/relative_copy_executable.sh /root/inaugurator/inaugurator/execs/program_tool
 	DEST=$@.tmp sh/create_busybox_links.sh /usr/sbin/busybox
 	cp -a ../osmosis/build/cpp/osmosis.bin $@.tmp/usr/bin/osmosis
+	cp compiled_drivers/i40e.ko.xz /lib/modules/4.18.19-100.fc27.x86_64/kernel/drivers/net/ethernet/intel/i40e/i40e.ko.xz
 	DEST=$@.tmp sh/relative_copy_executable_dependencies.sh $@.tmp/usr/bin/osmosis
 	echo "Copying drivers"
 	DEST=$@.tmp KERNEL_UNAME_R=$(KERNEL_VERSION) sh/relative_copy_driver.sh ixgbe
