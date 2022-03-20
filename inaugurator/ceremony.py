@@ -270,14 +270,14 @@ class Ceremony:
                         blockForever = threading.Event()
                         blockForever.wait()
                     else:
-                        self._talk_to_server_falied_safe(e)
+                        self._talk_to_server_failed_safe(e)
                     raise e
         except Exception:
             raise e
         finally:
             signal.alarm(0)
 
-    def _talk_to_server_falied_safe(self, exception):
+    def _talk_to_server_failed_safe(self, exception):
         try:
             self._talkToServer.failed(message=str(exception))
         except:
@@ -374,7 +374,7 @@ class Ceremony:
             self._doOsmosisFromSourceUnsafe(destination)
         except OsmosisTimeoutException as e:
             self.try_to_remove_osmosis(destination, True)
-            self._talk_to_server_falied_safe(e.message)
+            self._talk_to_server_failed_safe(e.message)
         except Exception as e:
             logging.exception("Failed to osmosis from source. %(type)s, %(msg)s", dict(type=type(e), msg=e.message))
             self.try_to_remove_osmosis(destination, True)
