@@ -230,6 +230,7 @@ class Ceremony:
             self._talkToServer.checkIn(hwinfo=hwinfo)
             message = self._talkToServer.label()
             self._label = json.loads(message)['rootfs']
+            osmosis_ip = json.loads(message).get('osmosis_ip', self._args.inauguratorOsmosisObjectStores)
         else:
             self._label = self._args.inauguratorNetworkLabel
         ATTEMPTS = 2
@@ -240,7 +241,7 @@ class Ceremony:
                 try:
                     if attempt == 0:
                         self._checkoutOsmosFromNetwork(destination,
-                                                       self._args.inauguratorOsmosisObjectStores,
+                                                       osmosis_ip,
                                                        self._args.inauguratorWithLocalObjectStore,
                                                        self._localObjectStore,
                                                        self._args.inauguratorIgnoreDirs,
@@ -248,7 +249,7 @@ class Ceremony:
                                                        inspectErrors=True)
                     else:
                         self._checkoutOsmosFromNetwork(destination,
-                                                       self._args.inauguratorOsmosisObjectStores,
+                                                       osmosis_ip,
                                                        self._args.inauguratorWithLocalObjectStore,
                                                        self._localObjectStore,
                                                        self._args.inauguratorIgnoreDirs,
