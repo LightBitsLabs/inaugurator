@@ -41,7 +41,7 @@ WORKDIR /root
 CMD make -C osmosis build -j 10 && \
     make -C osmosis egg
 
-RUN rpm -i https://rpmfind.net/linux/fedora/linux/releases/32/Everything/x86_64/os/Packages/n/nvme-cli-1.10.1-1.fc32.x86_64.rpm
+RUN rpm -i http://lbmirror/infra/inaugurator/nvme-cli-1.10.1-1.fc32.x86_64.rpm
 
 WORKDIR /root/inaugurator
 ENV BUILD_HOST local
