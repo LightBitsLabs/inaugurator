@@ -30,13 +30,30 @@ def get_fio():
         {'error': e.message, 'command': sh.run('fio --name=randwrite --ioengine=libaio --iodepth=1 --rw=randwrite --bs=4k --direct=1 --numjobs=1 --size=10m --time_base=1 --runtime=10 --group_reporting --filename=/destRoot/fio_test --output-format=json')}
 
 
-def get_nvme_list():
-    def load_nvme_devices():
-        sh.run("mdev -s")
+def load_nvme_devices():
     try:
-        load_nvme_devices()
+        sh.run("mdev -s")
+    except Exception as e:
+        print("failed to execute `mdev -s`. Reason: {}".format(e))
+
+
+def get_nvme_list(seds=None):
+    try:
         r = sh.run("nvme list -o json")
-        return json.loads(r)
+        nvme_list = json.loads(r)
+        seds = seds or {}
+        for nvme in nvme_list["Devices"]:
+            dev = nvme["DevicePath"]
+            sed = seds.get(dev, None)
+            if not sed:
+                continue
+            if nvme["SerialNumber"] == sed.get("isn", None):
+                nvme["is_sed"] = True
+                err = sed.get("error")
+                if err:
+                    nvme["error"] = err
+
+        return nvme_list
     except Exception as e:
         return {'error': e.message}
 
@@ -167,11 +184,11 @@ class HWinfo:
     def __init__(self):
         self.data = None
 
-    def run(self):
+    def run(self, seds=None):
         data = {
                 "cpu": get_cpus(),
                 "fio": get_fio(),
-                "nvme_list": get_nvme_list(),  # runs mdev -s
+                "nvme_list": get_nvme_list(seds),
                 "lshw": get_lshw(),
                 "ssd_per_numa": get_ssd_per_numa(),
                 "nvdimm": get_nvdimm(),
@@ -193,6 +210,7 @@ if __name__ == '__main__':
         defaults = json.load(f)
 
     try:
+        load_nvme_devices()
         self_test_data = HWinfo().run()
 
         msg = dict(info=self_test_data,
