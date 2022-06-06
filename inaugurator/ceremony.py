@@ -222,11 +222,8 @@ class Ceremony:
         if self._args.inauguratorServerAMQPURL:
             self._talkToServer = talktoserver.TalkToServer(
                 amqpURL=self._args.inauguratorServerAMQPURL, myID=self._args.inauguratorMyIDForServer)
-            selfTest.load_nvme_devices()
-            seds = sed.get_all_sed_devices()
-            sed.reset_seds(seds, self._args.inauguratorSelfTestServerUrl)
             hwinfo = {'net': network.list_devices_info()}
-            self.send_hwinfo(self._args.inauguratorSelfTestServerUrl, seds)
+            self.send_hwinfo(self._args.inauguratorSelfTestServerUrl)
             if dirsize.check_storage_size_over_threshold(destination, DIR_THRESHOLD):
                 logging.info("dir: %s is over threshold: %s - cleaning osmosis" % (destination, str(DIR_THRESHOLD)))
                 self.try_to_remove_osmosis(destination)
@@ -437,12 +434,12 @@ class Ceremony:
             except Exception, ex:
                 print ex.message
 
-    def send_hwinfo(self, url, seds):
+    def send_hwinfo(self, url):
         with open('/destRoot/hwinfo_defaults', 'w') as f:
             json.dump({'mac': self._args.inauguratorUseNICWithMAC, 'ip': self._args.inauguratorIPAddress,
                        'id': self._args.inauguratorMyIDForServer, 'url': url}, f)
         try:
-            self_test_data = selfTest.HWinfo().run(seds)
+            self_test_data = selfTest.HWinfo().run(url)
 
             msg = dict(info=self_test_data,
                        mac=self._args.inauguratorUseNICWithMAC,
