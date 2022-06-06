@@ -1,4 +1,5 @@
 from inaugurator import sh
+from inaugurator.sed import get_all_sed_devices, reset_seds
 import json
 from subprocess import CalledProcessError
 
@@ -30,18 +31,24 @@ def get_fio():
         {'error': e.message, 'command': sh.run('fio --name=randwrite --ioengine=libaio --iodepth=1 --rw=randwrite --bs=4k --direct=1 --numjobs=1 --size=10m --time_base=1 --runtime=10 --group_reporting --filename=/destRoot/fio_test --output-format=json')}
 
 
-def load_nvme_devices():
+def get_nvme_list(selftest_url=None):
+    """
+    "mdev -s" scans /sys/class/xxx, looking for directories which have dev
+     file (it is of the form "M:m\n"). Example: /sys/class/tty/tty0/dev
+     contains "4:0\n". Directory name is taken as device name, path component
+     directly after /sys/class/ as subsystem. In this example, "tty0" and "tty".
+     Then mdev creates the /dev/device_name node.
+     If /sys/class/.../dev file does not exist, mdev still may act
+     on this device: see "@|$|*command args..." parameter in config file.
+    """
     try:
         sh.run("mdev -s")
-    except Exception as e:
-        print("failed to execute `mdev -s`. Reason: {}".format(e))
-
-
-def get_nvme_list(seds=None):
-    try:
         r = sh.run("nvme list -o json")
         nvme_list = json.loads(r)
-        seds = seds or {}
+        seds = get_all_sed_devices()
+        if not seds:
+            return nvme_list
+        reset_seds(seds, selftest_url)
         for nvme in nvme_list["Devices"]:
             dev = nvme["DevicePath"]
             sed = seds.get(dev, None)
@@ -184,11 +191,11 @@ class HWinfo:
     def __init__(self):
         self.data = None
 
-    def run(self, seds=None):
+    def run(self, selftest_url=None):
         data = {
                 "cpu": get_cpus(),
+                "nvme_list": get_nvme_list(selftest_url), # runs mdev -s
                 "fio": get_fio(),
-                "nvme_list": get_nvme_list(seds),
                 "lshw": get_lshw(),
                 "ssd_per_numa": get_ssd_per_numa(),
                 "nvdimm": get_nvdimm(),
@@ -210,8 +217,7 @@ if __name__ == '__main__':
         defaults = json.load(f)
 
     try:
-        load_nvme_devices()
-        self_test_data = HWinfo().run()
+        self_test_data = HWinfo().run(defaults['url'])
 
         msg = dict(info=self_test_data,
                    mac=defaults['mac'],
