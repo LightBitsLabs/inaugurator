@@ -1,5 +1,5 @@
 from inaugurator import sh
-from inaugurator.sed import get_all_sed_devices, reset_seds
+from inaugurator.sed import Sed
 import json
 from subprocess import CalledProcessError
 
@@ -45,21 +45,19 @@ def get_nvme_list(selftest_url=None):
         sh.run("mdev -s")
         r = sh.run("nvme list -o json")
         nvme_list = json.loads(r)
-        seds = get_all_sed_devices()
-        if not seds:
+        sed_obj = Sed(nvme_list, selftest_url)
+        if not sed_obj.seds:
             return nvme_list
-        reset_seds(seds, selftest_url)
+        sed_obj.reset_seds()
         for nvme in nvme_list["Devices"]:
-            dev = nvme["DevicePath"]
-            sed = seds.get(dev, None)
+            isn = nvme["SerialNumber"]
+            sed = sed_obj.get_sed(isn)
             if not sed:
                 continue
-            if nvme["SerialNumber"] == sed.get("isn", None):
-                nvme["is_sed"] = True
-                err = sed.get("error")
-                if err:
-                    nvme["error"] = err
-
+            nvme["is_sed"] = True
+            err = sed.get("error")
+            if err:
+                nvme["error"] = err
         return nvme_list
     except Exception as e:
         return {'error': e.message}
