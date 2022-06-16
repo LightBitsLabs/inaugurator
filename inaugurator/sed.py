@@ -64,14 +64,17 @@ class Sed:
             if not devices:
                 return {}
             for dev in devices:
-                r = sh.run("sedutil-cli --query {}".format(dev))
-                dev_info = re.findall("(/dev/nvme\d+.+|$)", r)[0].strip().split(" ")
-                if not dev_info:
-                    continue
-                is_nvme = dev_info[1].lower() == "nvme"
-                if is_nvme:
-                    isn = dev_info[-1]
-                    seds[isn] = {"device": dev}
+                try:
+                    r = sh.run("sedutil-cli --query {}".format(dev))
+                    dev_info = re.findall("(/dev/nvme\d+.+|$)", r)[0].strip().split(" ")
+                    if not dev_info:
+                        continue
+                    is_nvme = dev_info[1].lower() == "nvme"
+                    if is_nvme:
+                        isn = dev_info[-1]
+                        seds[isn] = {"device": dev}
+                except Exception as e:
+                    logging.error(e)
             return seds
         except (CalledProcessError, Exception), e:
             logging.error(e)
