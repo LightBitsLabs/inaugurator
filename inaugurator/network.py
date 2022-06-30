@@ -43,6 +43,14 @@ class NetworkInterface:
     def __init__(self, iface_name):
         self.iface = iface_name
 
+    def get_current_ip_with_subnet(self):
+        cmd = "/usr/sbin/ip -4 addr show dev %s | grep inet | tr -s " " | cut -d" " -f3 | head -n 1" % self.iface
+        sh.run(cmd)
+
+    def set_ip(self, new_ip_with_subnet):
+        cmd = "/usr/sbin/ifconfig %s %s" % (self.iface, new_ip_with_subnet)
+        sh.run(cmd)
+
     def ifup(self):
         cmd = "/usr/sbin/ip link set %s up" % self.iface
         sh.run(cmd)
