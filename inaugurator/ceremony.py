@@ -230,6 +230,8 @@ class Ceremony:
             self._talkToServer.checkIn(hwinfo=hwinfo)
             message = self._talkToServer.label()
             self._label = json.loads(message)['rootfs']
+            logging.info("#####################################################")
+            logging.info(json.loads(message))
         else:
             self._label = self._args.inauguratorNetworkLabel
         ATTEMPTS = 2
