@@ -215,11 +215,34 @@ class Ceremony:
             with open(grubConfigFilename, "r") as grubConfigFile:
                 self._grubConfig = grubConfigFile.read()
 
+    def _handle_label_message(self, message):
+        logging.info("handling label message: %(msg)s", dict(msg=message))
+        msg = json.loads(message)
+        if 'rootfs' not in msg:
+            raise Exception('rootfs not found in label message')
+
+        self._label = msg['rootfs']
+        data_properties = ['osmosis_ip_data', 'data_interface', 'data_ip' ]
+        if all(p in msg for p in data_properties):
+            self._configure_data_network_for_osmosis(msg['osmosis_ip_data'], msg['data_interface'], msg['data_ip'])
+
+    def _configure_data_network_for_osmosis(self, osmosis_data_ip_port, data_interface_mac, data_ip):
+        try:
+            osmosis_ip_data = osmosis_data_ip_port.split(':')[0]
+            network.Network(
+                macAddress=data_interface_mac, ipAddress=data_ip , gateway=osmosis_ip_data)
+        except:
+            logging.exception("couldn't set-up data ip for osmosis. %(iface)s, %(ip)s"
+                              , dict(iface=data_interface_mac, ip=data_ip))
+            return
+        self._osmosis_data_ip_port = osmosis_data_ip_port
+
     def _osmosFromNetwork(self, destination, timeout_after=20*60): #20min
         if not self._args.inauguratorIsNetworkAlreadyConfigured:
             network.Network(
                 macAddress=self._args.inauguratorUseNICWithMAC, ipAddress=self._args.inauguratorIPAddress,
                 netmask=self._args.inauguratorNetmask, gateway=self._args.inauguratorGateway)
+
         self._debugPort = debugthread.DebugThread()
         if self._args.inauguratorServerAMQPURL:
             self._talkToServer = talktoserver.TalkToServer(
@@ -231,7 +254,7 @@ class Ceremony:
                 self.try_to_remove_osmosis(destination)
             self._talkToServer.checkIn(hwinfo=hwinfo)
             message = self._talkToServer.label()
-            self._label = json.loads(message)['rootfs']
+            self._handle_label_message(message)
         else:
             self._label = self._args.inauguratorNetworkLabel
         ATTEMPTS = 2
