@@ -96,6 +96,8 @@ class Ceremony:
         sh.logFilepath = self._args.inauguratorLogfilePath
         self._before = time.time()
         self._bootPartitionPath = None
+        self._label = None
+        self._osmosis_data_ip_port = None
 
     def ceremony(self):
         self._makeSureDiskIsMountable()
