@@ -260,12 +260,13 @@ class Ceremony:
         ATTEMPTS = 2
         signal.signal(signal.SIGALRM, self._raise_timeout_exception)
         signal.alarm(timeout_after)
+        osmosis_object_stores = self._osmosis_data_ip_port or self._args.inauguratorOsmosisObjectStores
         try:
             for attempt in range(ATTEMPTS):
                 try:
                     if attempt == 0:
                         self._checkoutOsmosFromNetwork(destination,
-                                                       self._args.inauguratorOsmosisObjectStores,
+                                                       osmosis_object_stores,
                                                        self._args.inauguratorWithLocalObjectStore,
                                                        self._localObjectStore,
                                                        self._args.inauguratorIgnoreDirs,
@@ -273,7 +274,7 @@ class Ceremony:
                                                        inspectErrors=True)
                     else:
                         self._checkoutOsmosFromNetwork(destination,
-                                                       self._args.inauguratorOsmosisObjectStores,
+                                                       osmosis_object_stores,
                                                        self._args.inauguratorWithLocalObjectStore,
                                                        self._localObjectStore,
                                                        self._args.inauguratorIgnoreDirs,
