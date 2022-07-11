@@ -3,27 +3,29 @@ from inaugurator import sh
 import os
 import time
 import thread
+import ipaddress
 
 
 class Network:
     _CONFIG_SCRIPT_PATH = "/etc/udhcp_script.sh"
     _NR_PING_ATTEMPTS = 40
 
-    def __init__(self, macAddress, ipAddress, netmask=None, gateway=None, init_lo=True):
-        self._gateway = gateway
+    def __init__(self, macAddress, ipAddress, gateway, netmask=None, init_lo=True, set_as_default=True):
         interfacesTable = self._interfacesTable()
         assert macAddress.lower() in interfacesTable, "macAddress %s interfacesTable %s" % (macAddress, interfacesTable)
         interfaceName = interfacesTable[macAddress.lower()]
         if init_lo:
             sh.run("/usr/sbin/ifconfig lo 127.0.0.1")
 
-        ifconfig_cmd = "/usr/sbin/ifconfig %s %s" % (interfaceName, ipAddress)
-        if netmask:
-            ifconfig_cmd += " netmask %s" % netmask
+        ip, netmask = self._get_ip_with_netmask(ipAddress, netmask)
+        ifconfig_cmd = "/usr/sbin/ifconfig %s %s netmask %s" % (interfaceName, ip, netmask)
         sh.run(ifconfig_cmd)
 
-        if gateway:
-            sh.run("busybox route add gw %s %s" % (self._gateway, interfaceName))
+        self._gateway = gateway
+        if set_as_default:
+            add_route_cmd = "busybox route add default gw %s" % self._gateway
+            sh.run(add_route_cmd)
+
         self._validateLinkIsUp()
 
     def _validateLinkIsUp(self):
@@ -46,17 +48,19 @@ class Network:
         ipOutput = sh.run("/usr/sbin/ip -o link")
         return {mac.lower(): interface for interface, mac in REGEX.findall(ipOutput)}
 
+    def _get_ip_with_netmask(self, ip_address, netmask):
+        if not netmask and '/' not in ip_address:
+            netmask = '255.255.0.0' #default netmask
+
+        if not netmask:
+            netmask = ipaddress.IPv4Network(unicode(ip_address), strict=False).netmask
+            ip_address = ip_address.split('/')[0]
+
+        return ip_address, netmask
+
 class NetworkInterface:
     def __init__(self, iface_name):
         self.iface = iface_name
-
-    def get_current_ip_with_subnet(self):
-        cmd = "/usr/sbin/ip -4 addr show dev %s | grep inet | tr -s " " | cut -d" " -f3 | head -n 1" % self.iface
-        sh.run(cmd)
-
-    def set_ip(self, new_ip_with_subnet):
-        cmd = "/usr/sbin/ifconfig %s %s" % (self.iface, new_ip_with_subnet)
-        sh.run(cmd)
 
     def ifup(self):
         cmd = "/usr/sbin/ip link set %s up" % self.iface
