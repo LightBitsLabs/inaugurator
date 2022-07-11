@@ -23,7 +23,7 @@ class Network:
         sh.run(ifconfig_cmd)
 
         if gateway:
-            sh.run("busybox route add default gw %s %s" % (self._gateway, interfaceName))
+            sh.run("busybox route add gw %s %s" % (self._gateway, interfaceName))
         self._validateLinkIsUp()
 
     def _validateLinkIsUp(self):
