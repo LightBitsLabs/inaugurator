@@ -9,17 +9,19 @@ class Network:
     _CONFIG_SCRIPT_PATH = "/etc/udhcp_script.sh"
     _NR_PING_ATTEMPTS = 40
 
-    def __init__(self, macAddress, ipAddress, netmask=None, gateway=None):
+    def __init__(self, macAddress, ipAddress, netmask=None, gateway=None, init_lo=True):
         self._gateway = gateway
         interfacesTable = self._interfacesTable()
         assert macAddress.lower() in interfacesTable, "macAddress %s interfacesTable %s" % (macAddress, interfacesTable)
         interfaceName = interfacesTable[macAddress.lower()]
-        sh.run("/usr/sbin/ifconfig lo 127.0.0.1")
+        if init_lo:
+            sh.run("/usr/sbin/ifconfig lo 127.0.0.1")
+
         ifconfig_cmd = "/usr/sbin/ifconfig %s %s" % (interfaceName, ipAddress)
         if netmask:
             ifconfig_cmd += " netmask %s" % netmask
-
         sh.run(ifconfig_cmd)
+
         if gateway:
             sh.run("busybox route add default gw %s %s" % (self._gateway, interfaceName))
         self._validateLinkIsUp()

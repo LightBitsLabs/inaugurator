@@ -230,7 +230,7 @@ class Ceremony:
         try:
             osmosis_ip_data = osmosis_data_ip_port.split(':')[0]
             network.Network(
-                macAddress=data_interface_mac, ipAddress=data_ip , gateway=osmosis_ip_data)
+                macAddress=data_interface_mac, ipAddress=data_ip , gateway=osmosis_ip_data, init_lo=False)
         except:
             logging.exception("couldn't set-up data ip for osmosis. %(iface)s, %(ip)s"
                               , dict(iface=data_interface_mac, ip=data_ip))
