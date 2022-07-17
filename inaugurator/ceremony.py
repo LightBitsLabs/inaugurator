@@ -222,15 +222,15 @@ class Ceremony:
             raise Exception('rootfs not found in label message')
 
         self._label = msg['rootfs']
-        data_properties = ['osmosis_ip_data', 'data_interface', 'data_ip' ]
+        data_properties = ['osmosis_data_ip', 'data_interface', 'data_ip' ]
         if all(p in msg for p in data_properties):
-            self._configure_data_network_for_osmosis(msg['osmosis_ip_data'], msg['data_interface'], msg['data_ip'])
+            self._configure_data_network_for_osmosis(msg['osmosis_data_ip'], msg['data_interface'], msg['data_ip'])
 
     def _configure_data_network_for_osmosis(self, osmosis_data_ip_port, data_interface_mac, data_ip):
         try:
-            osmosis_ip_data = osmosis_data_ip_port.split(':')[0]
+            osmosis_data_ip = osmosis_data_ip_port.split(':')[0]
             network.Network(
-                macAddress=data_interface_mac, ipAddress=data_ip , gateway=osmosis_ip_data
+                macAddress=data_interface_mac, ipAddress=data_ip , gateway=osmosis_data_ip
                 , init_lo=False, set_as_default=False)
         except:
             logging.exception("couldn't set-up data ip for osmosis. %(iface)s, %(ip)s"
