@@ -1,3 +1,10 @@
+
+# Need to make sure osmosis is installed
+import pkgutil
+if pkgutil.find_loader('osmosis') is None:
+    import sys
+    sys.path.append('/usr/local/lib/python2.7/dist-packages')
+
 from inaugurator import ceremony
 import argparse
 import traceback
