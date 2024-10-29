@@ -1,4 +1,4 @@
-FROM fedora:27
+FROM fedora:28
 MAINTAINER ops@lightbitslabs.com
 
 # Install other tools
@@ -28,7 +28,8 @@ RUN dnf install -y \
     fio \
     ndctl \
     numactl \
-    busybox && \
+    busybox \
+    grubby && \
     dnf -y clean all
 
 RUN pip install urllib3 requests pep8 pika==0.13.0 ipaddress
