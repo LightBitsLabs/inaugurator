@@ -35,7 +35,7 @@ ${PYTHON_DIST_LOCAL_PATH}: ${PYTHON_DIST_RECIPE}
 
 .PHONY: chown_stuff
 chown_stuff:
-	-@sudo chown -R $(USER):$(USER) docker-dist-tmp docker-build docker-dist build dist inaugurator.egg-info
+	-@sudo chown -R $(USER):$(USER) docker-dist-tmp docker-build build dist inaugurator.egg-info
 
 docker-dist/${PYTHON_DIST_FILENAME}:
 	-@mkdir $(@D)
