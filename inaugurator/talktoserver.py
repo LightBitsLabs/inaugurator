@@ -19,7 +19,10 @@ class TalkToServerSpooler(threading.Thread):
         self._labelQueue = None
         self._queue = Queue.Queue()
         self._isFinished = False
+        self._isReconnecting = False
         self._statusRoutingKey = statusRoutingKey
+        self._amqpURL = amqpURL
+        self._wasReconnected = False
         self._connect(amqpURL)
         threading.Thread.start(self)
 
@@ -29,12 +32,14 @@ class TalkToServerSpooler(threading.Thread):
     def getLabel(self):
         return self._executeCommandInConnectionThread(self._getLabel)
 
-    def cleanUpResources(self):
-        return self._executeCommandInConnectionThread(self._cleanUpResources)
+    def cleanUpResources(self, set_as_finished=True):
+        return self._executeCommandInConnectionThread(self._cleanUpResources, set_as_finished=set_as_finished)
 
-    def run(self):
+    def run(self): # being invoked by threading.Thread.start()
         logging.info("Inaugurator TalkToServer Spooler is waiting for commands...")
         while True:
+            if self._isReconnecting:
+                continue
             try:
                 finishedEvent, command, kwargs, returnValue = self._queue.get(block=True, timeout=10)
             except Queue.Empty:
@@ -70,6 +75,22 @@ class TalkToServerSpooler(threading.Thread):
         self._channel.queue_bind(queue=self._labelQueue, exchange="inaugurator_labels", routing_key=self._labelExchange)
         logging.info("Inaugurator Publish Spooler is connected to the RabbitMQ broker.")
 
+    def _reconnect(self):
+        # should run in Connection thread
+        self._wasReconnected = True
+        self._isReconnecting = True  # set reconnecting to stup main loop
+        logging.info("Trying to reconnect RabbitMQ.")
+        try:
+            self._cleanUpResources(set_as_finished=False)
+        except Exception as e:
+            # cleanup is not a must on reconnection we can ignore it
+            logging.exception("Couldnt cleanup resources. ignoring...")
+        try:
+            self._connect(self._amqpURL)
+        except Exception as e:
+            logging.exception("Couldnt to reconnect RabbitMQ.")
+        self._isReconnecting = False
+
     def _publishStatus(self, **status):
         body = json.dumps(status)
         self._channel.basic_publish(exchange=self._statusExchange, routing_key='', body=body)
@@ -80,7 +101,8 @@ class TalkToServerSpooler(threading.Thread):
         self._receivedLabel = body
         self._channel.stop_consuming()
 
-    def _cleanUpResources(self):
+    def _cleanUpResources(self, **kwargs):
+        set_as_finished = kwargs.get('set_as_finished')
         logging.info("Deleting the label queue...")
         try:
             self._channel.queue_delete(queue=self._labelQueue)
@@ -93,7 +115,7 @@ class TalkToServerSpooler(threading.Thread):
             logging.info("Connection closed.")
         except:
             logging.exception("An error occurred while closing the connection. ignoring.")
-        self._isFinished = True
+        self._isFinished = set_as_finished
 
     def _getLabel(self, **kwargs):
         self._channel.basic_consume(self._labelCallback, queue=self._labelQueue, no_ack=True)
@@ -113,7 +135,11 @@ class TalkToServerSpooler(threading.Thread):
         returnValue = ReturnValue()
         self._queue.put((finishedEvent, function, kwargs, returnValue), block=True)
         finishedEvent.wait()
-        if returnValue.exception is not None:
+        if not self._wasReconnected \
+                and isinstance(returnValue.exception, pika.exceptions.ConnectionClosed):
+            self._reconnect()
+            return self._executeCommandInConnectionThread(function, **kwargs)
+        elif returnValue.exception is not None:
             raise returnValue.exception
         return returnValue.data
 
