@@ -21,6 +21,7 @@ from inaugurator import debugthread
 from inaugurator import hwinfo as selfTest
 from inaugurator import dirsize
 from inaugurator import sed
+from inaugurator import uefi
 import os
 import time
 import logging
@@ -96,6 +97,8 @@ class Ceremony:
         sh.logFilepath = self._args.inauguratorLogfilePath
         self._before = time.time()
         self._bootPartitionPath = None
+        self._espPartitionPath = None
+        self._isUEFI = False
         self._label = None
         self._osmosis_data_ip_port = None
 
@@ -165,20 +168,27 @@ class Ceremony:
 
     def _createPartitionTable(self):
         lvmetad.Lvmetad()
+        layoutScheme = self._args.inauguratorPartitionLayout
+        self._isUEFI = uefi.isUEFIBoot()
+        if self._isUEFI and layoutScheme == "GPT":
+            logging.info("UEFI boot detected, overriding partition layout from GPT to UEFI_GPT")
+            layoutScheme = "UEFI_GPT"
         logging.info("Target device is %(device)s layout=%(layout)s",
-                     dict(device=self._targetDevice, layout=self._args.inauguratorPartitionLayout))
+                     dict(device=self._targetDevice, layout=layoutScheme))
         partitionTable = partitiontable.PartitionTable(self._targetDevice,
-                                                       layoutScheme=self._args.inauguratorPartitionLayout, hypervisor=self._args.hypervisor)
+                                                       layoutScheme=layoutScheme, hypervisor=self._args.hypervisor)
         if self._args.inauguratorClearDisk:
             partitionTable.clear()
         partitionTable.verify()
         self._bootPartitionPath = partitionTable.getBootPartitionPath()
+        self._espPartitionPath = partitionTable.getESPPartitionPath()
 
     def _configureETC(self, destination):
         self._etcLabelFile.write(self._label)
         fstab.createFSTab(
             rootPath=destination, root=self._mountOp.rootPartition(),
-            boot=self._mountOp.bootPartition(), swap=self._mountOp.swapPartition())
+            boot=self._mountOp.bootPartition(), swap=self._mountOp.swapPartition(),
+            esp=self._mountOp.espPartition())
         logging.info("/etc/fstab created")
         if self._args.inauguratorChangeRootPassword:
             passwd.setRootPassword(destination, self._args.inauguratorChangeRootPassword)
@@ -197,7 +207,11 @@ class Ceremony:
         with self._mountOp.mountBoot() as bootDestination:
             sh.run("rm -rf %s/*; sync" % bootDestination)  # LBM1-4920
             sh.run("rsync -rlpgDS --delete-before %s/boot/ %s/" % (destination, bootDestination))
-        with self._mountOp.mountBootInsideRoot():
+        if self._isUEFI:
+            mountContext = self._mountOp.mountBootInsideRootWithESP()
+        else:
+            mountContext = self._mountOp.mountBootInsideRoot()
+        with mountContext:
             serialDevices = self._getSerialDevices()
             if serialDevices:
                 logging.info("Overriding GRUB2 user settings to set serial devices to '%(devices)s'...",
@@ -207,7 +221,7 @@ class Ceremony:
                              "redirect the console output to (default values in the label will be used).")
             grub.updateGrubConf(serialDevices, destination, self._args.inauguratorPassthrough)
             logging.info("Installing GRUB2...")
-            grub.install(self._targetDevice, destination)
+            grub.install(self._targetDevice, destination, uefi=self._isUEFI)
             logging.info("Reading newly generated GRUB2 configuration file for later use...")
             grub_prefix = grub.grub_prefix(destination)
             assert grub_prefix is not None
@@ -389,6 +403,9 @@ class Ceremony:
         self._mountOp = mount.Mount(self._targetDevice)
         assert self._bootPartitionPath is not None, "Please initialize boot partition path first"
         self._mountOp.setBootPartitionPath(self._bootPartitionPath)
+        if self._isUEFI:
+            assert self._espPartitionPath is not None, "Please initialize ESP partition path first"
+            self._mountOp.setESPPartitionPath(self._espPartitionPath)
 
     def _loadKernelForKexecing(self, destination):
         self._loadKernel = loadkernel.LoadKernel()
