@@ -74,13 +74,18 @@ def grub_prefix(destination):
     return None
 
 
-def install(targetDevice, destination):
+def install(targetDevice, destination, uefi=False):
 
     prefix = grub_prefix(destination)
     if prefix is None:
         raise Exception("Failed to install grub boot menu grub tools not found")
 
-    chrootScript = '%(prefix)s-install %(targetDevice)s && %(prefix)s-mkconfig > /boot/%(prefix)s/grub.cfg' % dict(
-        prefix=prefix, targetDevice=targetDevice)
+    if uefi:
+        chrootScript = \
+            '%(prefix)s-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=inaugurator' \
+            ' --recheck && %(prefix)s-mkconfig > /boot/%(prefix)s/grub.cfg' % dict(prefix=prefix)
+    else:
+        chrootScript = '%(prefix)s-install %(targetDevice)s && %(prefix)s-mkconfig > /boot/%(prefix)s/grub.cfg' % dict(
+            prefix=prefix, targetDevice=targetDevice)
 
     sh.run("/usr/sbin/busybox chroot %s sh -c '%s'" % (destination, chrootScript))
