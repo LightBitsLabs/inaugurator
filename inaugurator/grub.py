@@ -20,7 +20,7 @@ def modifyingGrubConf(userSettingsFileHandler, existingConfiguration, serialDevi
             cmdline = line.split("=", maxSplit)[1].strip(" \"")
             argsWithoutConsole = [arg for arg in cmdline.split(" ") if not arg.startswith("console=")]
             configurationWithoutConsole = " ".join(argsWithoutConsole)
-            consoleConfiguration = " ".join(["console=%s" % (device,) for device in serialDevices])
+            consoleConfiguration = "console=tty0 " + " ".join(["console=%s" % (device,) for device in serialDevices])
             passThroughArgsStringify = " ".join(passThroughArgs.split(","))
             line = "GRUB_CMDLINE_LINUX=\"%(configurationWithoutConsole)s %(consoleConfiguration)s %(passThroughArgs)s\"" % \
                 dict(configurationWithoutConsole=configurationWithoutConsole,
