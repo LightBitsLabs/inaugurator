@@ -22,6 +22,7 @@ PDB_ON_ERROR = False
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument("--inauguratorStages", default="ceremony,kexec")
 parser.add_argument("--inauguratorClearDisk", action="store_true")
+parser.add_argument("--inauguratorWipeNonRootDisks", action="store_true", default=False)
 parser.add_argument("--inauguratorSource", required=True)
 parser.add_argument("--inauguratorServerAMQPURL")
 parser.add_argument("--inauguratorMyIDForServer")

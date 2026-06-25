@@ -340,6 +340,87 @@ class PartitionTable:
                       "inaugurations)..." % (dict(device=device))
                 self.clear(device=device, count=1)
 
+    @staticmethod
+    def _selectNonRootDisksToWipe(blockNames, rootName, removableNames, mountedSources):
+        """Pure selection of the whole physical data disks to wipe -- the
+        safety-critical core, unit-tested. Returns `/dev/<name>` for every
+        physical disk (`nvme*`/`sd*`/`vd*`) EXCEPT: the root/target device
+        (`rootName`), removable media (install/USB, `removableNames`), and any
+        disk that has a currently-mounted partition (`mountedSources`). Any
+        non-physical node (loop/ram/dm/md/sr/zram/...) is never selected. On any
+        ambiguity it errs toward *not* selecting -- the safe direction for a
+        destructive op.
+        """
+        selected = []
+        for name in sorted(blockNames):
+            if not (name.startswith("nvme") or name.startswith("sd") or name.startswith("vd")):
+                continue
+            if name == rootName:
+                continue
+            if name in removableNames:
+                continue
+            device = "/dev/%s" % name
+            if any(source == device or source.startswith(device) for source in mountedSources):
+                continue
+            selected.append(device)
+        return selected
+
+    def _mountedDeviceSources(self):
+        mounted = set()
+        try:
+            with open("/proc/mounts") as f:
+                for line in f:
+                    source = line.split(" ")[0]
+                    if source.startswith("/dev/"):
+                        mounted.add(source)
+        except IOError:
+            traceback.print_exc()
+        return mounted
+
+    def _isRemovableDisk(self, name):
+        try:
+            with open("/sys/block/%s/removable" % name) as f:
+                return f.read().strip() == "1"
+        except IOError:
+            return False
+
+    def wipeNonRootDisks(self):
+        """Clear partition tables + leading superblocks on every physical data
+        disk EXCEPT the root/target device, so no leftover partition (e.g. a
+        prior tenant's `nvme6n1p11`) survives a reimage into the next
+        allocation. Opt-in (`--inauguratorWipeNonRootDisks`). Best-effort per
+        device: a failure (busy device / missing tool) is logged and never
+        aborts the inauguration. Safety is delegated to
+        `_selectNonRootDisksToWipe` -- never the root device, never removable
+        media, never a disk with a mounted partition.
+        """
+        rootName = os.path.basename(self._device)
+        try:
+            blockNames = os.listdir("/sys/block")
+        except OSError:
+            traceback.print_exc()
+            print "Unable to list /sys/block; skipping non-root disk wipe"
+            return
+        removableNames = set(name for name in blockNames if self._isRemovableDisk(name))
+        mountedSources = self._mountedDeviceSources()
+        devices = self._selectNonRootDisksToWipe(blockNames, rootName, removableNames, mountedSources)
+        print "Wiping leftover partitions on non-root disks (root=%(root)s): %(devices)s" % \
+            dict(root=self._device, devices=", ".join(devices) if devices else "(none)")
+        for device in devices:
+            try:
+                # Zero the leading MiBs first (drops FS / RAID-1.2 / LVM
+                # superblocks that live near the start), then write a fresh empty
+                # GPT, which rewrites BOTH the primary and backup tables -- so no
+                # stale partition (and no backup GPT the kernel could restore)
+                # survives. `parted` is present in the inaugurator initrd;
+                # `wipefs`/`sgdisk` may not be.
+                self.clear(device=device, count=10)
+                sh.run("parted -s %s mklabel gpt" % device)
+            except Exception:
+                traceback.print_exc()
+                print "Failed to wipe %s; continuing with the rest" % device
+        sh.run("busybox mdev -s")
+
     def verify(self):
         if not self._findMismatch():
             print "Partition table already set up"

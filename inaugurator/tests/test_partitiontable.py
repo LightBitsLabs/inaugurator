@@ -391,5 +391,41 @@ class Test(unittest.TestCase):
         return out
 
 
+class TestNonRootDiskSelection(unittest.TestCase):
+    # the pure, IO-free selection that decides which whole disks wipeNonRootDisks
+    # touches. This is the safety-critical core, exercised without the initrd.
+    def _select(self, block, rootName, removable=None, mounted=None):
+        return PartitionTable._selectNonRootDisksToWipe(
+            block, rootName, set(removable or []), set(mounted or []))
+
+    # test_excludes_root_removable_mounted_and_virtual: only the bare physical
+    # data disks are selected; root, removable media, a disk with a mounted
+    # partition, and all virtual/non-disk nodes are excluded.
+    def test_excludes_root_removable_mounted_and_virtual(self):
+        block = ["sda", "nvme0n1", "nvme1n1", "nvme2n1", "sdb",
+                 "loop0", "dm-0", "md0", "sr0", "ram0", "zram0"]
+        got = self._select(block, rootName="sda",
+                            removable=["sdb"],            # USB / install medium
+                            mounted=["/dev/nvme2n1p1"])   # nvme2 has a mounted partition
+        self.assertEqual(got, ["/dev/nvme0n1", "/dev/nvme1n1"])
+
+    # test_root_never_selected: the root/target device is never wiped, even if it
+    # is the only disk present.
+    def test_root_never_selected(self):
+        self.assertEqual(self._select(["nvme0n1"], rootName="nvme0n1"), [])
+
+    # test_mounted_partition_protects_whole_disk: a mount anywhere on a disk
+    # protects the entire disk (in-use -> never wiped).
+    def test_mounted_partition_protects_whole_disk(self):
+        got = self._select(["nvme0n1", "nvme1n1"], rootName="sda",
+                            mounted=["/dev/nvme1n1p3"])
+        self.assertEqual(got, ["/dev/nvme0n1"])
+
+    # test_only_physical_disks: no virtual/non-disk node is ever a candidate.
+    def test_only_physical_disks(self):
+        self.assertEqual(
+            self._select(["loop0", "dm-0", "md0", "sr0", "ram0", "zram0"], rootName="sda"), [])
+
+
 if __name__ == '__main__':
     unittest.main()

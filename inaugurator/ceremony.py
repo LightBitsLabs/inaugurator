@@ -172,6 +172,11 @@ class Ceremony:
         if self._args.inauguratorClearDisk:
             partitionTable.clear()
         partitionTable.verify()
+        if self._args.inauguratorWipeNonRootDisks:
+            # Reimage hygiene: clear leftover partitions/superblocks on every
+            # non-root data disk so nothing (e.g. a prior tenant's nvme6n1p11)
+            # survives into the next allocation. Opt-in; best-effort.
+            partitionTable.wipeNonRootDisks()
         self._bootPartitionPath = partitionTable.getBootPartitionPath()
 
     def _configureETC(self, destination):
