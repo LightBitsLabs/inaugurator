@@ -29,19 +29,37 @@ class Test(unittest.TestCase):
         modifyingGrubConf(self.output, EXISTING_CONFIGURATION,
                           ["ttyS1,115200n8"], "memmap=16G!64G")
         self._verify_not_linux_cmdline_equals()
-        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'], '" console=ttyS1,115200n8 memmap=16G!64G"')
+        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'],
+                         '" console=tty0 console=ttyS1,115200n8 memmap=16G!64G"')
 
     def test_console_and_multipe_passthrough_valid_values(self):
         modifyingGrubConf(self.output, EXISTING_CONFIGURATION,
                           ["ttyS1,115200n8"], "memmap=16G!64G,memmap=16G!80G")
         self._verify_not_linux_cmdline_equals()
-        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'], '" console=ttyS1,115200n8 memmap=16G!64G memmap=16G!80G"')
+        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'],
+                         '" console=tty0 console=ttyS1,115200n8 memmap=16G!64G memmap=16G!80G"')
 
+    def test_tty0_comes_first_and_serial_console_remains_last(self):
+        modifyingGrubConf(self.output, EXISTING_CONFIGURATION,
+                          ["ttyS1,115200n8"], "")
+        self._verify_not_linux_cmdline_equals()
+        cmdline = self.modified_conf_pairs['GRUB_CMDLINE_LINUX'].strip('"').split()
+        consoles = [arg for arg in cmdline if arg.startswith("console=")]
+        self.assertEqual(consoles[0], "console=tty0")
+        self.assertEqual(consoles[-1], "console=ttyS1,115200n8")
+
+    def test_tty0_already_in_serial_devices_is_not_duplicated(self):
+        modifyingGrubConf(self.output, EXISTING_CONFIGURATION,
+                          ["tty0", "ttyS0,115200n8"], "")
+        self._verify_not_linux_cmdline_equals()
+        cmdline = self.modified_conf_pairs['GRUB_CMDLINE_LINUX'].strip('"').split()
+        consoles = [arg for arg in cmdline if arg.startswith("console=")]
+        self.assertEqual(consoles, ["console=tty0", "console=ttyS0,115200n8"])
 
     def _test_console_and_passthrough_non_values(self, console, passthrough):
         modifyingGrubConf(self.output, EXISTING_CONFIGURATION, console, passthrough)
         self._verify_not_linux_cmdline_equals()
-        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'], '"  "')
+        self.assertEqual(self.modified_conf_pairs['GRUB_CMDLINE_LINUX'], '" console=tty0 "')
 
     def test_console_and_passthrough_empty_values(self):
         self._test_console_and_passthrough_non_values([], "")
