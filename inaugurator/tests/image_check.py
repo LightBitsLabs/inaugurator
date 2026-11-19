@@ -3,6 +3,7 @@ each can be loaded from it. Run after the build:
 
     python -m inaugurator.tests.image_check build/inaugurator.thin.initrd.dir
 """
+import glob
 import os
 import sys
 import unittest
@@ -16,8 +17,15 @@ LAB_PCI_DEVICES = [
     (0x8086, 0x159b, 'ice'),        # E810-XXV SFP
     (0x8086, 0x15ff, 'i40e'),       # X710 10GBASE-T
     (0x8086, 0x1521, 'igb'),        # I350
+    (0x1077, 0x8070, 'qede'),       # FastLinQ QL41000
 ]
 NVME_MODALIAS = 'pci:v0000144Dd0000A808sv0000144Dsd0000A801bc01sc08i02'
+# Firmware a driver cannot bring its NIC up without, as globs under lib/firmware. qed's is
+# named by qed, not by qede, so copying qede alone leaves it out.
+LAB_FIRMWARE = [
+    'intel/ice/ddp/ice.pkg',
+    'qed/qed_init_values_zipped-*.bin',
+]
 
 imageDir = None
 
@@ -84,9 +92,10 @@ class Test(unittest.TestCase):
             if os.path.exists(os.path.join(_modulesDir(), paths[0])):
                 self._assertLoadable(driver)
 
-    def test_iceHasItsDdpPackage(self):
-        package = os.path.join(imageDir, 'lib', 'firmware', 'intel', 'ice', 'ddp', 'ice.pkg')
-        self.assertTrue(os.path.exists(package))
+    def test_labFirmwareIsInTheImage(self):
+        for pattern in LAB_FIRMWARE:
+            found = glob.glob(os.path.join(imageDir, 'lib', 'firmware', pattern))
+            self.assertTrue(found, "no firmware matches %s" % pattern)
 
 
 if __name__ == '__main__':
