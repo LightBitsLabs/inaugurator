@@ -147,8 +147,13 @@ class PartitionTable:
         return re.split(r"\s+", output.strip().split("\n")[-1].strip())
 
     @classmethod
-    def parseLVMPhysicalVolume(cls, partition):
+    def _scanPhysicalVolume(cls, partition):
+        udevdb.markBlockDevicesInitialized()
         sh.run("lvm pvscan --cache %s" % partition)
+
+    @classmethod
+    def parseLVMPhysicalVolume(cls, partition):
+        cls._scanPhysicalVolume(partition)
         fields = cls._fieldsOfLastTableRow(sh.run("lvm pvdisplay --units m --columns %s" % partition))
         assert fields[0] == partition, "Invalid columns output from pvdisplay: %s" % fields
         assert fields[4].endswith("m")
@@ -344,7 +349,7 @@ class PartitionTable:
         if not self._findMismatch():
             print "Partition table already set up"
             lvmPartitionPath = self._getPartitionPath("lvm")
-            sh.run("lvm pvscan --cache %s" % lvmPartitionPath)
+            self._scanPhysicalVolume(lvmPartitionPath)
             sh.run("lvm vgchange --activate y %s" % self.VOLUME_GROUP)
             sh.run("lvm vgscan --mknodes")
             print "/dev/inaugurator:"
