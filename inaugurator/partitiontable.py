@@ -3,6 +3,7 @@ import traceback
 import time
 import os
 from inaugurator import sh
+from inaugurator import udevdb
 
 
 class PartitionTable:

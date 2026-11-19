@@ -26,6 +26,7 @@ class Test(unittest.TestCase):
     def setUp(self):
         self.expectedCommands = []
         sh.run = self.runShell
+        inaugurator.partitiontable.udevdb.markBlockDevicesInitialized = lambda: None
         inaugurator.partitiontable.os.path.exists = self.fakeOSExists
         self.diskSizeGB = 128
         self.fakeExistingPaths = set()

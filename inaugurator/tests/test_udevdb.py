@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from inaugurator import partitiontable
 from inaugurator import udevdb
 
 
@@ -49,6 +50,23 @@ class Test(unittest.TestCase):
     def test_noBlockDevices(self):
         self._mark()
         self.assertEquals(os.listdir(self.udevData), [])
+
+
+class TestScanPhysicalVolume(unittest.TestCase):
+    def setUp(self):
+        self.calls = []
+        self.originalRun = partitiontable.sh.run
+        self.originalMark = partitiontable.udevdb.markBlockDevicesInitialized
+        partitiontable.sh.run = lambda command: self.calls.append(command)
+        partitiontable.udevdb.markBlockDevicesInitialized = lambda: self.calls.append("mark")
+
+    def tearDown(self):
+        partitiontable.sh.run = self.originalRun
+        partitiontable.udevdb.markBlockDevicesInitialized = self.originalMark
+
+    def test_marksBlockDevicesBeforeTheScan(self):
+        partitiontable.PartitionTable._scanPhysicalVolume("/dev/sda3")
+        self.assertEquals(self.calls, ["mark", "lvm pvscan --cache /dev/sda3"])
 
 
 if __name__ == '__main__':
