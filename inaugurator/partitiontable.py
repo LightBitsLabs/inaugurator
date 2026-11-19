@@ -18,6 +18,10 @@ class PartitionTable:
                                                    boot=dict(sizeMB=1024, fs="ext4", flags="boot, esp", set_flags="boot"),
                                                    lvm=dict(set_flags="lvm", flags="lvm", sizeMB="fillUp")),
                                    order=("bios_boot", "boot", "lvm")),
+                          UEFI_GPT=dict(partitions=dict(esp=dict(sizeMB=256, fs="fat32", set_flags="esp", flags="boot, esp"),
+                                                        boot=dict(sizeMB=1024, fs="ext4", flags=""),
+                                                        lvm=dict(set_flags="lvm", flags="lvm", sizeMB="fillUp")),
+                                        order=("esp", "boot", "lvm")),
                           MBR=dict(partitions=dict(boot=dict(sizeMB=1024, fs="ext4", set_flags="boot", flags="boot"),
                                                    lvm=dict(set_flags="lvm", flags="lvm", sizeMB="fillUp")),
                                    order=("boot", "lvm")))
@@ -61,6 +65,8 @@ class PartitionTable:
         sh.run(script)
         self._setFlags()
         sh.run("busybox mdev -s")
+        if self._layoutScheme == "UEFI_GPT":
+            sh.run("mkfs.vfat -F 32 -n ESP %s" % self._getPartitionPath("esp"))
         sh.run("mkfs.ext4 %s -L BOOT" % self._getPartitionPath("boot"))
         try:
             sh.run("lvm vgremove -f %s" % (self.VOLUME_GROUP, ))
@@ -118,12 +124,29 @@ class PartitionTable:
                      bootStart=bootStart,
                      bootEnd=bootEnd,
                      lvmStart=bootEnd)
+        elif self._layoutScheme == "UEFI_GPT":
+            espStart = 1
+            espEnd = espStart + self._physicalPartitions["esp"]["sizeMB"]
+            bootStart = espEnd
+            bootEnd = bootStart + self._physicalPartitions["boot"]["sizeMB"]
+            script = "parted -s %(device)s -- " \
+                     "mklabel gpt mkpart primary fat32 %(espStart)sMiB %(espEnd)sMiB " \
+                     "mkpart primary ext4 %(bootStart)sMiB %(bootEnd)sMiB " \
+                     "mkpart primary ext4 %(lvmStart)sMiB -1" % \
+                dict(device=self._device,
+                     espStart=espStart,
+                     espEnd=espEnd,
+                     bootStart=bootStart,
+                     bootEnd=bootEnd,
+                     lvmStart=bootEnd)
         return script
 
     def _setFlags(self):
         for partitionIdx, partition in enumerate(self._physicalPartitionsOrder):
             partitionNr = partitionIdx + 1
-            flag = self._physicalPartitions[partition]["set_flags"]
+            flag = self._physicalPartitions[partition].get("set_flags")
+            if not flag:
+                continue
             print "Setting flag '%s' for partition #%d..." % (flag, partitionNr)
             sh.run("parted -s %s set %d %s on" % (self._device, partitionNr, flag))
 
@@ -392,3 +415,11 @@ class PartitionTable:
 
     def getBootPartitionPath(self):
         return self._getPartitionPath("boot")
+
+    def getESPPartitionPath(self):
+        if self._layoutScheme != "UEFI_GPT":
+            return None
+        return self._getPartitionPath("esp")
+
+    def isUEFI(self):
+        return self._layoutScheme == "UEFI_GPT"

@@ -18,8 +18,14 @@ echo ifconfig -a:
 /usr/sbin/busybox modprobe nfit
 /usr/sbin/busybox modprobe dax_pmem
 /usr/sbin/busybox modprobe nd_pmem
+/usr/sbin/busybox modprobe efivars 2>/dev/null || true
+/usr/sbin/busybox modprobe efivarfs 2>/dev/null || true
+/usr/sbin/busybox modprobe vfat
 wait
 /usr/sbin/busybox mdev -s
+if [ -d /sys/firmware/efi/efivars ]; then
+    /usr/sbin/busybox mount -t efivarfs none /sys/firmware/efi/efivars 2>/dev/null || true
+fi
 echo lsmod:
 /usr/sbin/busybox lsmod
 export PYUDEV_UDEV_LIBRARY_NAME=libudev.so.1
