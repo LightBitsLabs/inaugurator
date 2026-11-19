@@ -52,7 +52,7 @@ class Test(unittest.TestCase):
         self.assertEquals(os.listdir(self.udevData), [])
 
 
-class TestScanPhysicalVolume(unittest.TestCase):
+class TestLvm(unittest.TestCase):
     def setUp(self):
         self.calls = []
         self.originalRun = partitiontable.sh.run
@@ -64,9 +64,14 @@ class TestScanPhysicalVolume(unittest.TestCase):
         partitiontable.sh.run = self.originalRun
         partitiontable.udevdb.markBlockDevicesInitialized = self.originalMark
 
-    def test_marksBlockDevicesBeforeTheScan(self):
-        partitiontable.PartitionTable._scanPhysicalVolume("/dev/sda3")
+    def test_marksBlockDevicesBeforeAnLvmCommand(self):
+        partitiontable._lvm("pvscan --cache /dev/sda3")
         self.assertEquals(self.calls, ["mark", "lvm pvscan --cache /dev/sda3"])
+
+    def test_everyLvmCommandGoesThroughTheHelper(self):
+        source = open(partitiontable.__file__.replace(".pyc", ".py")).read()
+        direct = [line for line in source.splitlines() if 'sh.run("lvm' in line]
+        self.assertEquals(direct, ['    return sh.run("lvm %s" % arguments)'])
 
 
 if __name__ == '__main__':
