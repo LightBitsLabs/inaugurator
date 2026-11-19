@@ -17,6 +17,9 @@ UNITTESTS=$(shell find inaugurator -name 'test*.py' | sed 's@/@.@g' | sed 's/\(.
 unittest:
 	PYTHONPATH=. python -m unittest $(UNITTESTS)
 
+check_image: build/inaugurator.thin.initrd.dir
+	PYTHONPATH=. python -m inaugurator.tests.image_check $<
+
 integration_test:
 	@echo "Note: For specific tests, run with TESTS=(Space seperated test names)."
 	@PYTHONPATH=inaugurator python inaugurator/tests/integration_test.py $(TESTS)
