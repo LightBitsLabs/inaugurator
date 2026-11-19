@@ -6,11 +6,20 @@ from inaugurator import sh
 from inaugurator import udevdb
 
 
+# Each command here takes seconds on a healthy disk, so one still running after five minutes is
+# stuck. Killing it turns a hang into a failure that the caller can recover from.
+_COMMAND_TIMEOUT_SECONDS = 5 * 60
+
+
+def _run(command):
+    return sh.run(command, timeout=_COMMAND_TIMEOUT_SECONDS)
+
+
 def _lvm(arguments):
     """Any lvm command can scan every block device, and each scan can hit the udev wait
     that udevdb describes, so the devices are marked before every one of them."""
     udevdb.markBlockDevicesInitialized()
-    return sh.run("lvm %s" % arguments)
+    return _run("lvm %s" % arguments)
 
 
 class PartitionTable:
@@ -59,17 +68,54 @@ class PartitionTable:
     def clear(self, device=None, count=512):
         if device is None:
             device = self._device
-        sh.run("busybox dd if=/dev/zero of=%(device)s bs=1M count=%(count)s" % dict(device=device,
-                                                                                    count=count))
+        _run("busybox dd if=/dev/zero of=%(device)s bs=1M count=%(count)s" %
+             dict(device=device, count=count))
+
+    def prepare(self, clearFirst=False):
+        """Leaves the disk with a verified layout. A disk that fails to set up, or hangs, gets
+        its partitions deleted and is set up once more from nothing."""
+        try:
+            if clearFirst:
+                self.clear()
+            self.verify()
+        except Exception:
+            traceback.print_exc()
+            print "Disk setup failed, deleting the partitions of %s and setting it up again" % self._device
+            self._deletePartitions()
+            self.verify()
+
+    def _deletePartitions(self):
+        """Empties the partition table, so that the next verify() rebuilds the whole layout.
+        Each step is best effort: a disk that failed half way through its setup can lack the
+        volume group, the partitions or the partition table itself."""
+        for step in (self._deactivateVolumeGroup, self._wipePartitionHeaders, self._deletePartitionTable):
+            try:
+                step()
+            except Exception:
+                traceback.print_exc()
+                print "%s failed" % step.__name__
+        _run("busybox mdev -s")
+
+    def _deactivateVolumeGroup(self):
+        # active volumes keep the lvm partition busy, and a busy partition cannot be deleted
+        _lvm("vgchange --activate n %s" % self.VOLUME_GROUP)
+
+    def _wipePartitionHeaders(self):
+        # a partition created again at the same offset would bring the old LVM label or filesystem back
+        for partition in self.parsePartitionTable():
+            self.clear(device=partition["device"], count=1)
+
+    def _deletePartitionTable(self):
+        _run("sfdisk --delete %s" % self._device)
 
     def _create(self):
         self.clear()
         script = self._getPartitionCommand()
         print "creating new partition table of layout '%s': \n%s\n" % (self._layoutScheme, script)
-        sh.run(script)
+        _run(script)
         self._setFlags()
-        sh.run("busybox mdev -s")
-        sh.run("mkfs.ext4 %s -L BOOT" % self._getPartitionPath("boot"))
+        _run("busybox mdev -s")
+        _run("mkfs.ext4 %s -L BOOT" % self._getPartitionPath("boot"))
         try:
             _lvm("vgremove -f %s" % (self.VOLUME_GROUP, ))
         except:
@@ -90,7 +136,7 @@ class PartitionTable:
         else:
             osmosisCacheSizeGB = self._sizesGB["smallOsmosisCache"]
         _lvm("lvcreate --zero n --name osmosis-cache --size %dG %s" %
-               (osmosisCacheSizeGB, self.VOLUME_GROUP))
+             (osmosisCacheSizeGB, self.VOLUME_GROUP))
 
         rootSize = "--extents 80%FREE"
         if self._hypervisor:
@@ -99,11 +145,11 @@ class PartitionTable:
         _lvm("lvcreate --zero n --name root %s %s" % (rootSize, self.VOLUME_GROUP))
         _lvm("vgscan --mknodes")
         self._waitForFileToShowUp("/dev/%s/swap" % self.VOLUME_GROUP)
-        sh.run("mkswap /dev/%s/swap -L SWAP" % self.VOLUME_GROUP)
+        _run("mkswap /dev/%s/swap -L SWAP" % self.VOLUME_GROUP)
         self._waitForFileToShowUp("/dev/%s/root" % self.VOLUME_GROUP)
-        sh.run("mkfs.ext4 /dev/%s/root -L ROOT" % self.VOLUME_GROUP)
+        _run("mkfs.ext4 /dev/%s/root -L ROOT" % self.VOLUME_GROUP)
         self._waitForFileToShowUp("/dev/%s/osmosis-cache" % self.VOLUME_GROUP)
-        sh.run("mkfs.ext4 /dev/%s/osmosis-cache" % self.VOLUME_GROUP)
+        _run("mkfs.ext4 /dev/%s/osmosis-cache" % self.VOLUME_GROUP)
         self._created = True
 
     def _getPartitionCommand(self):
@@ -133,11 +179,11 @@ class PartitionTable:
             partitionNr = partitionIdx + 1
             flag = self._physicalPartitions[partition]["set_flags"]
             print "Setting flag '%s' for partition #%d..." % (flag, partitionNr)
-            sh.run("parted -s %s set %d %s on" % (self._device, partitionNr, flag))
+            _run("parted -s %s set %d %s on" % (self._device, partitionNr, flag))
 
     def parsePartitionTable(self):
         cmd = "parted -s -m %(device)s unit MB print" % dict(device=self._device)
-        output = sh.run(cmd)
+        output = _run(cmd)
         print "Output of parted: %(output)s" % dict(output=output)
         lines = [line.strip() for line in output.split(";")]
         lines = [line for line in lines if line]
@@ -326,7 +372,7 @@ class PartitionTable:
                     self.clear(device=physicalDevice, count=1)
 
     def _getDevicesLabeledAsBoot(self):
-        output = sh.run("blkid")
+        output = _run("blkid")
         print "blkid output:\n"
         print output
         for line in output.splitlines():
@@ -357,7 +403,7 @@ class PartitionTable:
             _lvm("vgscan --mknodes")
             print "/dev/inaugurator:"
             try:
-                print sh.run("busybox find /dev/inaugurator")
+                print _run("busybox find /dev/inaugurator")
             except Exception as e:
                 print "Unable: %s" % e
             self._wipeOtherPartitionsWithSameVolumeGroup()

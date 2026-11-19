@@ -57,7 +57,7 @@ class TestLvm(unittest.TestCase):
         self.calls = []
         self.originalRun = partitiontable.sh.run
         self.originalMark = partitiontable.udevdb.markBlockDevicesInitialized
-        partitiontable.sh.run = lambda command: self.calls.append(command)
+        partitiontable.sh.run = lambda command, timeout: self.calls.append(command)
         partitiontable.udevdb.markBlockDevicesInitialized = lambda: self.calls.append("mark")
 
     def tearDown(self):
@@ -70,8 +70,8 @@ class TestLvm(unittest.TestCase):
 
     def test_everyLvmCommandGoesThroughTheHelper(self):
         source = open(partitiontable.__file__.replace(".pyc", ".py")).read()
-        direct = [line for line in source.splitlines() if 'sh.run("lvm' in line]
-        self.assertEquals(direct, ['    return sh.run("lvm %s" % arguments)'])
+        direct = [line for line in source.splitlines() if 'run("lvm' in line]
+        self.assertEquals(direct, ['    return _run("lvm %s" % arguments)'])
 
 
 if __name__ == '__main__':

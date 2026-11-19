@@ -48,7 +48,7 @@ class Test(unittest.TestCase):
 
         return FileLikeObject()
 
-    def runShell(self, command):
+    def runShell(self, command, timeout=None):
         foundList = [x for x in self.expectedCommands if x[0] == command]
         if len(foundList) == 0:
             msg = "Command '%s' is not in expected commands." % command
