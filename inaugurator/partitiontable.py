@@ -1,4 +1,5 @@
 import re
+import stat
 import traceback
 import time
 import os
@@ -15,6 +16,13 @@ _COMMAND_TIMEOUT_SECONDS = 5 * 60
 
 def _run(command):
     return sh.run(command, timeout=_COMMAND_TIMEOUT_SECONDS)
+
+
+def _isBlockDevice(path):
+    try:
+        return stat.S_ISBLK(os.stat(path).st_mode)
+    except OSError:
+        return False
 
 
 def _lvm(arguments):
@@ -104,8 +112,12 @@ class PartitionTable:
 
     def _wipePartitionHeaders(self):
         # a partition created again at the same offset would bring the old LVM label or filesystem back
+        _run("busybox mdev -s")
         for partition in self.parsePartitionTable():
-            self.clear(device=partition["device"], count=1)
+            # dd creates a regular file where the node is missing, and mdev then keeps that
+            # file in place of the node: the next mkfs would format a file in memory
+            if _isBlockDevice(partition["device"]):
+                self.clear(device=partition["device"], count=1)
 
     def _deletePartitionTable(self):
         _run("sfdisk --delete %s" % self._device)

@@ -8,15 +8,19 @@ class TestCommands(unittest.TestCase):
         self.calls = []
         self.failing = ()
         self.timingOut = ()
+        self.notBlockDevices = ()
         self.originalRun = partitiontable.sh.run
         self.originalMark = partitiontable.udevdb.markBlockDevicesInitialized
+        self.originalIsBlockDevice = partitiontable._isBlockDevice
         partitiontable.sh.run = self._run
         partitiontable.udevdb.markBlockDevicesInitialized = lambda: None
+        partitiontable._isBlockDevice = lambda path: path not in self.notBlockDevices
         self.tested = partitiontable.PartitionTable("/dev/sda")
 
     def tearDown(self):
         partitiontable.sh.run = self.originalRun
         partitiontable.udevdb.markBlockDevicesInitialized = self.originalMark
+        partitiontable._isBlockDevice = self.originalIsBlockDevice
 
     PARTED_PRINT = "BYT;/dev/sda:128000MB:scsi:512:512:gpt:ATA disk:;" \
         "1:1.05MB:3.15MB:2.10MB::primary:bios_grub;" \
@@ -42,6 +46,7 @@ class TestCommands(unittest.TestCase):
         self.tested._deletePartitions()
         self.assertEquals(self.calls, [
             "lvm vgchange --activate n inaugurator-v2",
+            "busybox mdev -s",
             "parted -s -m /dev/sda unit MB print",
             "busybox dd if=/dev/zero of=/dev/sda1 bs=1M count=1",
             "busybox dd if=/dev/zero of=/dev/sda2 bs=1M count=1",
@@ -54,9 +59,19 @@ class TestCommands(unittest.TestCase):
         self.tested._deletePartitions()
         self.assertEquals(self.calls, [
             "lvm vgchange --activate n inaugurator-v2",
+            "busybox mdev -s",
             "parted -s -m /dev/sda unit MB print",
             "sfdisk --delete /dev/sda",
             "busybox mdev -s"])
+
+    def test_wipesOnlyPartitionsThatHaveADeviceNode(self):
+        self.notBlockDevices = ("/dev/sda2",)
+        self.tested._wipePartitionHeaders()
+        self.assertEquals(self.calls, [
+            "busybox mdev -s",
+            "parted -s -m /dev/sda unit MB print",
+            "busybox dd if=/dev/zero of=/dev/sda1 bs=1M count=1",
+            "busybox dd if=/dev/zero of=/dev/sda3 bs=1M count=1"])
 
     def test_aTimeoutWhileReadingThePartitionTableIsNotAMismatch(self):
         self.timingOut = ("parted -s -m",)
