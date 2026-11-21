@@ -25,12 +25,19 @@ class Test(unittest.TestCase):
 
     def setUp(self):
         self.expectedCommands = []
+        self.replaced = (sh.run, inaugurator.partitiontable.udevdb.markBlockDevicesInitialized,
+                         inaugurator.partitiontable.os.path.exists)
         sh.run = self.runShell
         inaugurator.partitiontable.udevdb.markBlockDevicesInitialized = lambda: None
         inaugurator.partitiontable.os.path.exists = self.fakeOSExists
         self.diskSizeGB = 128
         self.fakeExistingPaths = set()
         inaugurator.partitiontable.open = self._readSizeMock
+
+    def tearDown(self):
+        sh.run, inaugurator.partitiontable.udevdb.markBlockDevicesInitialized, \
+            inaugurator.partitiontable.os.path.exists = self.replaced
+        del inaugurator.partitiontable.open
 
     def _readSizeMock(self, name, *args, **kwargs):
         sizeInBlocks = int(float(self.diskSizeGB) * self._NR_BYTES_IN_GB / self._BLOCK_SIZE)
