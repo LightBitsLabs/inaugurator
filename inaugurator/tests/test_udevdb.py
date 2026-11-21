@@ -53,6 +53,23 @@ class Test(unittest.TestCase):
         self._mark()
         self.assertEquals(os.listdir(self.udevData), ["b259:4"])
 
+    def test_marksTheOtherDevicesWhenOneCannotBeRead(self):
+        self._addBlockDevice("sda", "8:0")
+        os.makedirs(os.path.join(self.sysfsBlock, "nvme3n1", "dev"))
+        self._addBlockDevice("sdb", "8:16")
+        self._mark()
+        self.assertEquals(sorted(os.listdir(self.udevData)), ["b8:0", "b8:16"])
+
+    def test_doesNotFailWhenTheBlockDeviceListCannotBeRead(self):
+        shutil.rmtree(self.sysfsBlock)
+        self._mark()
+
+    def test_doesNotFailWhenTheUdevDatabaseCannotBeCreated(self):
+        self._addBlockDevice("sda", "8:0")
+        os.makedirs(os.path.dirname(self.udevData))
+        open(self.udevData, "w").close()
+        self._mark()
+
     def test_noBlockDevices(self):
         self._mark()
         self.assertEquals(os.listdir(self.udevData), [])

@@ -5,6 +5,7 @@ each can be loaded from it. Run after the build:
 """
 import glob
 import os
+import subprocess
 import sys
 import unittest
 from inaugurator import udev
@@ -20,11 +21,12 @@ LAB_PCI_DEVICES = [
     (0x1077, 0x8070, 'qede'),       # FastLinQ QL41000
 ]
 NVME_MODALIAS = 'pci:v0000144Dd0000A808sv0000144Dsd0000A801bc01sc08i02'
-# Firmware a driver cannot bring its NIC up without, as globs under lib/firmware. qed's is
-# named by qed, not by qede, so copying qede alone leaves it out.
-LAB_FIRMWARE = [
-    'intel/ice/ddp/ice.pkg',
-    'qed/qed_init_values_zipped-*.bin',
+# Every storage and network driver that a lab machine binds. One that the kernel has built
+# in passes as it is; if a later kernel makes it a module, the check fails until the build
+# copies it.
+LAB_DRIVERS = [
+    'ahci', 'ata_piix', 'sd_mod', 'usb_storage', 'megaraid_sas', 'nvme',
+    'mlx5_core', 'igb', 'i40e', 'ixgbe', 'ice', 'tg3', 'e1000e', 'bnx2x', 'bnxt_en', 'qede',
 ]
 
 imageDir = None
@@ -57,6 +59,11 @@ def _dependencies():
             name = os.path.basename(path).split('.')[0].replace('-', '_')
             result[name] = [path] + needs.split()
     return result
+
+
+def _builtInDrivers():
+    with open(os.path.join(_modulesDir(), 'modules.builtin')) as f:
+        return set(os.path.basename(line).split('.')[0].replace('-', '_') for line in f)
 
 
 def _pciModalias(vendor, device):
@@ -92,10 +99,21 @@ class Test(unittest.TestCase):
             if os.path.exists(os.path.join(_modulesDir(), paths[0])):
                 self._assertLoadable(driver)
 
-    def test_labFirmwareIsInTheImage(self):
-        for pattern in LAB_FIRMWARE:
-            found = glob.glob(os.path.join(imageDir, 'lib', 'firmware', pattern))
-            self.assertTrue(found, "no firmware matches %s" % pattern)
+    def test_labDriversAreBuiltInOrLoadable(self):
+        builtIn = _builtInDrivers()
+        for driver in LAB_DRIVERS:
+            if driver not in builtIn:
+                self._assertLoadable(driver)
+
+    def test_firmwareNamedByTheModulesIsInTheImage(self):
+        "A driver that does not find its firmware loads and then fails to bring its device up."
+        for driver, paths in self.dependencies.items():
+            module = os.path.join(_modulesDir(), paths[0])
+            if not os.path.exists(module):
+                continue
+            for name in subprocess.check_output(['modinfo', '-F', 'firmware', module]).split():
+                found = glob.glob(os.path.join(imageDir, 'lib', 'firmware', name + '*'))
+                self.assertTrue(found, "%s names firmware %s" % (driver, name))
 
 
 if __name__ == '__main__':
