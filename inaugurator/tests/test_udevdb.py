@@ -47,6 +47,12 @@ class Test(unittest.TestCase):
         self._mark()
         self.assertEquals(sorted(os.listdir(self.udevData)), ["b8:0", "b8:1"])
 
+    def test_skipsABlockDeviceThatHasNoDeviceNumber(self):
+        self._addBlockDevice("nvme2n1", "259:4")
+        os.makedirs(os.path.join(self.sysfsBlock, "nvme2c2n1"))
+        self._mark()
+        self.assertEquals(os.listdir(self.udevData), ["b259:4"])
+
     def test_noBlockDevices(self):
         self._mark()
         self.assertEquals(os.listdir(self.udevData), [])

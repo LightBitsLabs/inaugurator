@@ -12,6 +12,11 @@ def markBlockDevicesInitialized(sysfsBlock=_SYSFS_BLOCK, udevData=_UDEV_DATA):
     if not os.path.isdir(udevData):
         os.makedirs(udevData)
     for name in os.listdir(sysfsBlock):
-        with open(os.path.join(sysfsBlock, name, "dev")) as f:
+        deviceNumberPath = os.path.join(sysfsBlock, name, "dev")
+        if not os.path.exists(deviceNumberPath):
+            # A hidden block device, such as one path of a multipath NVMe namespace, has no
+            # device number. lvm cannot open it, so it needs no entry.
+            continue
+        with open(deviceNumberPath) as f:
             deviceNumber = f.read().strip()
         open(os.path.join(udevData, "b" + deviceNumber), "a").close()
