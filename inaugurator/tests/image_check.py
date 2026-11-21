@@ -51,9 +51,11 @@ def _aliasTable():
 
 
 def _dependencies():
-    "module name -> paths, relative to the modules directory, of the module and all it needs"
+    """module name -> paths, relative to the modules directory, of the module and all it needs.
+    Read from the builder's module tree: the image's own modules.dep is generated from the
+    modules that were copied, so it cannot name one that is missing."""
     result = dict()
-    with open(os.path.join(_modulesDir(), 'modules.dep')) as f:
+    with open(os.path.join('/lib/modules', os.path.basename(_modulesDir()), 'modules.dep')) as f:
         for line in f:
             path, needs = line.strip().split(':')
             name = os.path.basename(path).split('.')[0].replace('-', '_')
