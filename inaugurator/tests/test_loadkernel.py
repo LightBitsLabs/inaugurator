@@ -1,5 +1,6 @@
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
 from inaugurator import loadkernel
@@ -9,16 +10,20 @@ class Test(unittest.TestCase):
     def setUp(self):
         self.driverDirectory = tempfile.mkdtemp()
         self.calls = []
-        self.originals = (loadkernel.sh.run, loadkernel._unbind)
+        self.kexecFails = False
+        self.originals = (loadkernel.sh.run, loadkernel._unbind, loadkernel._restartWithoutShutdown)
         loadkernel.sh.run = self._run
         loadkernel._unbind = lambda directory, address: self.calls.append("unbind %s" % address)
+        loadkernel._restartWithoutShutdown = lambda: self.calls.append("restart")
 
     def tearDown(self):
-        loadkernel.sh.run, loadkernel._unbind = self.originals
+        loadkernel.sh.run, loadkernel._unbind, loadkernel._restartWithoutShutdown = self.originals
         shutil.rmtree(self.driverDirectory)
 
     def _run(self, command):
         self.calls.append(command)
+        if self.kexecFails:
+            raise subprocess.CalledProcessError(-9, command, "")
 
     def _addDriverEntries(self, * addresses):
         for name in addresses + ("module",):
@@ -51,6 +56,15 @@ class Test(unittest.TestCase):
         self._execute()
         self.assertEquals(len(self.calls), 3)
         self.assertEquals(self.calls[2], "kexec -e")
+
+    def test_restartsWhenKexecFails(self):
+        self.kexecFails = True
+        self._execute()
+        self.assertEquals(self.calls, ["kexec -e", "restart"])
+
+    def test_doesNotRestartAfterKexec(self):
+        self._execute()
+        self.assertEquals(self.calls, ["kexec -e"])
 
 
 if __name__ == '__main__':

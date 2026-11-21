@@ -31,6 +31,16 @@ def _unbindMlx5Devices(driverDirectory):
             traceback.print_exc()
 
 
+def _restartWithoutShutdown():
+    """A kexec that failed in the middle of the device shutdown leaves kernel locks held, so
+    an orderly reboot can hang on them. This restart skips the shutdown; the disks were
+    synced before kexec."""
+    with open("/proc/sys/kernel/sysrq", "w") as f:
+        f.write("1")
+    with open("/proc/sysrq-trigger", "w") as f:
+        f.write("b")
+
+
 class LoadKernel:
     def fromBootPartitionGrubConfig(self, grubConfig, bootPath, rootPartition):
         parser = grubconfparser.GrubConfParser(grubConfig)
@@ -41,8 +51,15 @@ class LoadKernel:
             self._filterOutRootArgument(parser.defaultKernelCommandLine())))
 
     def execute(self, mlx5DriverDirectory=_MLX5_DRIVER_DIRECTORY):
+        """Returns only when kexec failed. The installed system boots from the disk all the
+        same, so the machine is restarted, not left where nothing can reach it."""
         _unbindMlx5Devices(mlx5DriverDirectory)
-        sh.run("kexec -e")
+        try:
+            sh.run("kexec -e")
+        except Exception:
+            traceback.print_exc()
+            logging.error("kexec failed, restarting to boot the installed system from the disk")
+            _restartWithoutShutdown()
 
     def _filterOutRootArgument(self, commandLine):
         parts = commandLine.split(' ')
