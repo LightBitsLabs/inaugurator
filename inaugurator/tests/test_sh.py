@@ -26,6 +26,16 @@ class Test(unittest.TestCase):
             run("sleep 30 & sleep 30", timeout=0.3)
         self.assertLess(time.time() - before, 5)
 
+    def test_doesNotWaitForAChildThatEscapedTheKillAndKeepsThePipeOpen(self):
+        grace, sh._KILL_GRACE_SECONDS = sh._KILL_GRACE_SECONDS, 0.5
+        try:
+            before = time.time()
+            with self.assertRaises(sh.TimeoutExpired):
+                run("setsid sleep 8 & sleep 8", timeout=0.3)
+            self.assertLess(time.time() - before, 4)
+        finally:
+            sh._KILL_GRACE_SECONDS = grace
+
     def test_aFailingCommandRaisesCalledProcessError(self):
         with self.assertRaises(subprocess.CalledProcessError):
             run("exit 3", timeout=10)

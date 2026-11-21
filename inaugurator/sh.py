@@ -11,12 +11,26 @@ class TimeoutExpired(Exception):
     pass
 
 
-def _killProcessGroup(process, expired):
+_KILL_GRACE_SECONDS = 10
+
+
+def _outputWithin(process, timeout):
+    """Returns (output, expired). A command still running after timeout seconds is killed, and
+    then waited for only briefly: a process stuck inside the kernel cannot die, and a child
+    that moved to another session keeps the pipe open, so the read may never end."""
+    collected = []
+    reader = threading.Thread(target=lambda: collected.append(process.communicate()[0]))
+    reader.daemon = True
+    reader.start()
+    reader.join(timeout)
+    if not reader.isAlive():
+        return collected[0], False
     try:
         os.killpg(process.pid, signal.SIGKILL)
     except OSError:
-        return
-    expired.append(True)
+        pass
+    reader.join(_KILL_GRACE_SECONDS)
+    return (collected[0] if collected else ""), True
 
 
 def run(* args, ** kwargs):
@@ -26,22 +40,17 @@ def run(* args, ** kwargs):
     message = "\n\nExecuting Command: %s\n\n" % (commandRepr,)
     if logFilepath is None:
         print message
-    expired = []
-    timer = None
+    expired = False
     if timeout is not None:
         # The command runs under a shell; only a process group of its own lets the kill reach
         # the shell's children.
         kwargs["preexec_fn"] = os.setsid
     cmdPipe = subprocess.Popen(
         args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True, shell=True, ** kwargs)
-    if timeout is not None:
-        timer = threading.Timer(timeout, _killProcessGroup, [cmdPipe, expired])
-        timer.start()
-    try:
+    if timeout is None:
         output, _ = cmdPipe.communicate()
-    finally:
-        if timer is not None:
-            timer.cancel()
+    else:
+        output, expired = _outputWithin(cmdPipe, timeout)
     if logFilepath is not None:
         try:
             with open(logFilepath, "a+") as f:
