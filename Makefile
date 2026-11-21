@@ -17,6 +17,14 @@ UNITTESTS=$(shell find inaugurator -name 'test*.py' | sed 's@/@.@g' | sed 's/\(.
 unittest:
 	PYTHONPATH=. python -m unittest $(UNITTESTS)
 
+# pxelinux holds the kernel and the initrd together in the top usable memory region below
+# 4GB. The smallest such region in the lab is 54.5MB (Supermicro SYS-220TP-HTTR); a pair
+# that does not fit makes pxelinux stall at "Loading ...initrd...".
+PXE_LOADER_BUDGET_BYTES=50000000
+check_image: build/inaugurator.thin.initrd.dir build/inaugurator.thin.initrd.img build/inaugurator.vmlinuz
+	PYTHONPATH=. python -m inaugurator.tests.image_check $<
+	sh/check_image_size.sh build/inaugurator.vmlinuz build/inaugurator.thin.initrd.img $(PXE_LOADER_BUDGET_BYTES)
+
 integration_test:
 	@echo "Note: For specific tests, run with TESTS=(Space seperated test names)."
 	@PYTHONPATH=inaugurator python inaugurator/tests/integration_test.py $(TESTS)
