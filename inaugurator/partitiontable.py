@@ -7,7 +7,9 @@ from inaugurator import udevdb
 
 
 # Each command here takes seconds on a healthy disk, so one still running after five minutes is
-# stuck. Killing it turns a hang into a failure that the caller can recover from.
+# stuck. Killing it turns a hang into a failure that the caller can recover from. The handlers
+# below that read a failed command as "the layout does not match" let a timeout through: the
+# next command would hang the same way, and each hang costs the same five minutes.
 _COMMAND_TIMEOUT_SECONDS = 5 * 60
 
 
@@ -118,6 +120,8 @@ class PartitionTable:
         _run("mkfs.ext4 %s -L BOOT" % self._getPartitionPath("boot"))
         try:
             _lvm("vgremove -f %s" % (self.VOLUME_GROUP, ))
+        except sh.TimeoutExpired:
+            raise
         except:
             traceback.print_exc()
             print "'lvm vgremove' failed"
@@ -231,6 +235,8 @@ class PartitionTable:
     def _findMismatchInPartitionTable(self):
         try:
             parsed = self.parsePartitionTable()
+        except sh.TimeoutExpired:
+            raise
         except:
             print "Unable to parse partition table"
             traceback.print_exc()
@@ -270,6 +276,8 @@ class PartitionTable:
         lvmPartitionPath = self._getPartitionPath("lvm")
         try:
             physical = self.parseLVMPhysicalVolume(lvmPartitionPath)
+        except sh.TimeoutExpired:
+            raise
         except:
             print "Unable to parse physical volume"
             traceback.print_exc()
@@ -284,6 +292,8 @@ class PartitionTable:
             swap = self.parseLVMLogicalVolume("swap")
             root = self.parseLVMLogicalVolume("root")
             osmosis = self.parseLVMLogicalVolume("osmosis-cache")
+        except sh.TimeoutExpired:
+            raise
         except:
             print "Unable to parse logical volume/s"
             traceback.print_exc()

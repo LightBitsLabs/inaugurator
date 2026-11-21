@@ -7,6 +7,7 @@ class TestCommands(unittest.TestCase):
     def setUp(self):
         self.calls = []
         self.failing = ()
+        self.timingOut = ()
         self.originalRun = partitiontable.sh.run
         self.originalMark = partitiontable.udevdb.markBlockDevicesInitialized
         partitiontable.sh.run = self._run
@@ -25,6 +26,8 @@ class TestCommands(unittest.TestCase):
     def _run(self, command, timeout):
         self.assertEquals(timeout, partitiontable._COMMAND_TIMEOUT_SECONDS)
         self.calls.append(command)
+        if command.startswith(self.timingOut):
+            raise sh.TimeoutExpired("'%s' did not finish" % command)
         if command.startswith(self.failing):
             raise Exception("'%s' failed" % command)
         if command.startswith("parted -s -m"):
@@ -54,6 +57,22 @@ class TestCommands(unittest.TestCase):
             "parted -s -m /dev/sda unit MB print",
             "sfdisk --delete /dev/sda",
             "busybox mdev -s"])
+
+    def test_aTimeoutWhileReadingThePartitionTableIsNotAMismatch(self):
+        self.timingOut = ("parted -s -m",)
+        with self.assertRaises(sh.TimeoutExpired):
+            self.tested._findMismatchInPartitionTable()
+
+    def test_aTimeoutWhileReadingTheVolumesIsNotAMismatch(self):
+        self.timingOut = ("lvm pvscan",)
+        with self.assertRaises(sh.TimeoutExpired):
+            self.tested._findMismatchInLVM()
+
+    def test_aTimeoutOfVgremoveStopsTheCreation(self):
+        self.timingOut = ("lvm vgremove",)
+        with self.assertRaises(sh.TimeoutExpired):
+            self.tested._create()
+        self.assertEquals(self.calls[-1], "lvm vgremove -f inaugurator-v2")
 
 
 class TestPrepare(unittest.TestCase):
