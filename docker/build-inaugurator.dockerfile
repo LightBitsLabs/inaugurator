@@ -32,7 +32,7 @@ RUN dnf install -y \
     grubby && \
     dnf -y clean all
 
-RUN pip install urllib3 requests pep8 pika==0.13.0 ipaddress
+RUN pip install urllib3 requests pep8 pika==0.13.0 ipaddress mock==3.0.5 simplejson
 
 # Edit sudoers file to avoid error: sudo: sorry, you must have a tty to run sudo
 RUN sed -i -e "s/Defaults    requiretty.*/ #Defaults    requiretty/g" /etc/sudoers
