@@ -131,7 +131,7 @@ class Ceremony:
     def reboot(self):
         self._sync()
         self._verify()
-        sh.run("reboot -f")
+        loadkernel.reboot()
 
     def _assertArgsSane(self):
         logging.info("Command line arguments: %(args)s", dict(args=self._args))
