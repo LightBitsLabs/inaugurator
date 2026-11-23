@@ -72,6 +72,14 @@ class NetworkInterface:
     def _device_attr(self, attr_name):
         return  sh.run("/usr/sbin/cat %s/%s" % (self._dev_status_path(), attr_name)).strip()
 
+    def _device_attr_or(self, attr_name, default):
+        """The kernel fails the read of speed and carrier, with EINVAL, for an interface that
+        could not be brought up. One such port must not stop the report of all the others."""
+        try:
+            return self._device_attr(attr_name)
+        except Exception:
+            return default
+
     def wait_link_up(self):
         NR_UP_ATTEMPTS = 10
         operstate = ""
@@ -87,8 +95,8 @@ class NetworkInterface:
         address = self._device_attr('address')
         mtu = self._device_attr('mtu')
         operstate = self._device_attr('operstate')
-        speed = self._device_attr('speed')
-        carrier = self._device_attr('carrier')
+        speed = self._device_attr_or('speed', '-1')
+        carrier = self._device_attr_or('carrier', '0')
         return {"address" : address,
                 "mtu": mtu,
                 "operstate" : operstate,
