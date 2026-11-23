@@ -3,6 +3,14 @@ import traceback
 import time
 import os
 from inaugurator import sh
+from inaugurator import udevdb
+
+
+def _lvm(arguments):
+    """Any lvm command can scan every block device, and each scan can hit the udev wait
+    that udevdb describes, so the devices are marked before every one of them."""
+    udevdb.markBlockDevicesInitialized()
+    return sh.run("lvm %s" % arguments)
 
 
 class PartitionTable:
@@ -63,33 +71,33 @@ class PartitionTable:
         sh.run("busybox mdev -s")
         sh.run("mkfs.ext4 %s -L BOOT" % self._getPartitionPath("boot"))
         try:
-            sh.run("lvm vgremove -f %s" % (self.VOLUME_GROUP, ))
+            _lvm("vgremove -f %s" % (self.VOLUME_GROUP, ))
         except:
             traceback.print_exc()
             print "'lvm vgremove' failed"
         lvmPartitionPath = self._getPartitionPath("lvm")
-        sh.run("lvm pvcreate -y -ff %s" % (lvmPartitionPath,))
-        sh.run("lvm vgcreate -y %s %s" % (self.VOLUME_GROUP, lvmPartitionPath))
+        _lvm("pvcreate -y -ff %s" % (lvmPartitionPath,))
+        _lvm("vgcreate -y %s %s" % (self.VOLUME_GROUP, lvmPartitionPath))
         if self._diskSizeMB() / 1024 >= self._sizesGB['createRoot'] + self._sizesGB['bigSwap'] + \
                 self._sizesGB["bigOsmosisCache"]:
             swapSizeGB = 8
         else:
             swapSizeGB = 1
-        sh.run("lvm lvcreate --zero n --name swap --size %dG %s" % (swapSizeGB, self.VOLUME_GROUP))
+        _lvm("lvcreate --zero n --name swap --size %dG %s" % (swapSizeGB, self.VOLUME_GROUP))
         if self._diskSizeMB() / 1024 > self._sizesGB['createRoot'] + swapSizeGB + \
                 self._sizesGB["bigOsmosisCache"]:
             osmosisCacheSizeGB = self._sizesGB["bigOsmosisCache"]
         else:
             osmosisCacheSizeGB = self._sizesGB["smallOsmosisCache"]
-        sh.run("lvm lvcreate --zero n --name osmosis-cache --size %dG %s" %
-               (osmosisCacheSizeGB, self.VOLUME_GROUP))
+        _lvm("lvcreate --zero n --name osmosis-cache --size %dG %s" %
+             (osmosisCacheSizeGB, self.VOLUME_GROUP))
 
         rootSize = "--extents 80%FREE"
         if self._hypervisor:
             rootSize = "--extents 100%FREE"
 
-        sh.run("lvm lvcreate --zero n --name root %s %s" % (rootSize, self.VOLUME_GROUP))
-        sh.run("lvm vgscan --mknodes")
+        _lvm("lvcreate --zero n --name root %s %s" % (rootSize, self.VOLUME_GROUP))
+        _lvm("vgscan --mknodes")
         self._waitForFileToShowUp("/dev/%s/swap" % self.VOLUME_GROUP)
         sh.run("mkswap /dev/%s/swap -L SWAP" % self.VOLUME_GROUP)
         self._waitForFileToShowUp("/dev/%s/root" % self.VOLUME_GROUP)
@@ -148,15 +156,15 @@ class PartitionTable:
 
     @classmethod
     def parseLVMPhysicalVolume(cls, partition):
-        sh.run("lvm pvscan --cache %s" % partition)
-        fields = cls._fieldsOfLastTableRow(sh.run("lvm pvdisplay --units m --columns %s" % partition))
+        _lvm("pvscan --cache %s" % partition)
+        fields = cls._fieldsOfLastTableRow(_lvm("pvdisplay --units m --columns %s" % partition))
         assert fields[0] == partition, "Invalid columns output from pvdisplay: %s" % fields
         assert fields[4].endswith("m")
         return dict(name=fields[1], sizeMB=int(re.match(r"\d+", fields[4]).group(0)))
 
     @classmethod
     def parseLVMLogicalVolume(cls, label):
-        fields = cls._fieldsOfLastTableRow(sh.run("lvm lvdisplay --units m --columns /dev/%s/%s" % (
+        fields = cls._fieldsOfLastTableRow(_lvm("lvdisplay --units m --columns /dev/%s/%s" % (
             cls.VOLUME_GROUP, label)))
         assert fields[0] == label, "Invalid columns output from lvdisplay: %s" % fields
         assert fields[3].endswith("m")
@@ -263,7 +271,7 @@ class PartitionTable:
         return first > second * 0.9 and first < second * 1.1
 
     def _parseVGs(self):
-        pvscanOutput = sh.run("lvm pvscan")
+        pvscanOutput = _lvm("pvscan")
         print "`pvscan` output:\n %(pvscanOutput)s" % dict(pvscanOutput=pvscanOutput)
         vgs = dict()
         if "No matching physical volumes found" in pvscanOutput:
@@ -344,9 +352,9 @@ class PartitionTable:
         if not self._findMismatch():
             print "Partition table already set up"
             lvmPartitionPath = self._getPartitionPath("lvm")
-            sh.run("lvm pvscan --cache %s" % lvmPartitionPath)
-            sh.run("lvm vgchange --activate y %s" % self.VOLUME_GROUP)
-            sh.run("lvm vgscan --mknodes")
+            _lvm("pvscan --cache %s" % lvmPartitionPath)
+            _lvm("vgchange --activate y %s" % self.VOLUME_GROUP)
+            _lvm("vgscan --mknodes")
             print "/dev/inaugurator:"
             try:
                 print sh.run("busybox find /dev/inaugurator")
