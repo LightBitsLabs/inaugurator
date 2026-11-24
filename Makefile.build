@@ -1,5 +1,7 @@
 KERNEL_VERSION?=$(shell rpm -q kernel | cut -c8-)
 INAUGURATOR_VERSION=$(shell python setup.py --version)
+# Named after its recipe, so that a dockerfile that changed gets a builder image of its own.
+BUILDER_IMAGE=build-inaugurator:$(INAUGURATOR_VERSION)-$(shell md5sum docker/build-inaugurator.dockerfile | cut -c1-12)
 
 KERNEL_IMAGE_PATH=define_build_host_msg
 INITRD_IMAGE_PATH=define_build_host_msg
@@ -40,19 +42,21 @@ chown_stuff:
 docker-dist/${PYTHON_DIST_FILENAME}:
 	-@mkdir $(@D)
 	$(MAKE) build_container
-	sudo docker run --rm -v `pwd`:/root/inaugurator -v $(PWD)/docker-build:/root/inaugurator/build -v `pwd`/../osmosis:/root/osmosis -v $(PWD)/docker-dist:/root/inaugurator/dist build-inaugurator:$(INAUGURATOR_VERSION) dist/$(@F)
+	sudo docker run --rm -v `pwd`:/root/inaugurator -v $(PWD)/docker-build:/root/inaugurator/build -v `pwd`/../osmosis:/root/osmosis -v $(PWD)/docker-dist:/root/inaugurator/dist $(BUILDER_IMAGE) dist/$(@F)
 	$(MAKE) chown_stuff
 
 
-build/inaugurator.vmlinuz: $(KERNEL_IMAGE_PATH)
+# The kernel file carries the date of its package, so by dates alone make would keep a copy
+# of another kernel that an earlier build left here.
+build/inaugurator.vmlinuz: $(KERNEL_IMAGE_PATH) FORCE
 	-@mkdir $(@D)
 	cp $(KERNEL_IMAGE_PATH) $@
 
-docker-build/%:
+docker-build/%: docker/build-inaugurator.dockerfile setup.py
 	-@mkdir $(@D)
 	-@mkdir docker-dist-tmp
 	$(MAKE) build_container
-	sudo docker run --rm -v `pwd`:/root/inaugurator -v $(PWD)/docker-build:/root/inaugurator/build -v `pwd`/../osmosis:/root/osmosis -v $(PWD)/docker-dist-tmp:/root/inaugurator/dist build-inaugurator:$(INAUGURATOR_VERSION) build/$(@F)
+	sudo docker run --rm -v `pwd`:/root/inaugurator -v $(PWD)/docker-build:/root/inaugurator/build -v `pwd`/../osmosis:/root/osmosis -v $(PWD)/docker-dist-tmp:/root/inaugurator/dist $(BUILDER_IMAGE) build/$(@F)
 	$(MAKE) chown_stuff
 
 shell:
@@ -60,7 +64,7 @@ shell:
 
 docker-shell:
 	$(MAKE) build_container
-	sudo docker run --rm -it -v `pwd`:/root/inaugurator -v $(PWD)/docker-build:/root/inaugurator/build -v `pwd`/../osmosis:/root/osmosis -v $(PWD)/docker-dist-tmp:/root/inaugurator/dist build-inaugurator:$(INAUGURATOR_VERSION) shell
+	sudo docker run --rm -it -v `pwd`:/root/inaugurator -v $(PWD)/docker-build:/root/inaugurator/build -v `pwd`/../osmosis:/root/osmosis -v $(PWD)/docker-dist-tmp:/root/inaugurator/dist $(BUILDER_IMAGE) shell
 
 build/inaugurator.%.initrd.img: $(INITRD_IMAGE_PATH)
 	bash -o pipefail -c '( cd $< ; find . | cpio -o -H newc ) | xz --check=crc32 -9 > $@.tmp'
@@ -181,15 +185,18 @@ build/inaugurator.fat.initrd.dir: build/inaugurator.thin.initrd.dir
 	cp -a lib $@.tmp/
 	mv $@.tmp $@
 
-build/build-inaugurator.dockerfile:
+build/build-inaugurator.dockerfile: docker/build-inaugurator.dockerfile
 	@-mkdir build
-	cp docker/$(@F) $@
+	cp $< $@
 
 .PHONY: build_container
 build_container: build/build-inaugurator.dockerfile
 ifeq ($(BUILD_HOST),docker)
-ifeq ($(shell sudo docker images | egrep -Ec "^build-inaugurator[ ]+$(INAUGURATOR_VERSION)" | xargs echo -n),0)
-	$(info It seems that a build-inaugurator image for version $(INAUGURATOR_VERSION) of Inaugurator was not built. Trying to build it....)
-	sudo docker build -f build/build-inaugurator.dockerfile -t build-inaugurator:$(INAUGURATOR_VERSION) build
+ifeq ($(shell sudo docker images -q $(BUILDER_IMAGE)),)
+	$(info It seems that the builder image $(BUILDER_IMAGE) was not built. Trying to build it....)
+	sudo docker build -f build/build-inaugurator.dockerfile -t $(BUILDER_IMAGE) build
 endif
 endif
+
+.PHONY: FORCE
+FORCE:
