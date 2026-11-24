@@ -16,6 +16,7 @@ ifeq ($(BUILD_HOST),docker)
 KERNEL_IMAGE_PATH=docker-build/inaugurator.vmlinuz
 INITRD_IMAGE_PATH=docker-build/inaugurator.%.initrd.dir
 PYTHON_DIST_RECIPE=docker-dist/${PYTHON_DIST_FILENAME}
+BUILD_CHECK=check_docker_build
 endif
 DOCKER_RUN_CMD=
 
@@ -25,7 +26,14 @@ define_build_host_msg:
 
 
 .PHONY: build
-build: build/inaugurator.vmlinuz build/inaugurator.thin.initrd.img ${PYTHON_DIST_PATH}
+build: build/inaugurator.vmlinuz build/inaugurator.thin.initrd.img ${PYTHON_DIST_PATH} $(BUILD_CHECK)
+
+# The driver check needs the builder's python and the directory the initrd was packed from,
+# so it runs in the builder. The size check measures the two files that are delivered.
+.PHONY: check_docker_build
+check_docker_build: build/inaugurator.vmlinuz build/inaugurator.thin.initrd.img
+	sudo docker run --rm -v `pwd`:/root/inaugurator -v $(PWD)/docker-build:/root/inaugurator/build $(BUILDER_IMAGE) check_image_drivers
+	sh/check_image_size.sh build/inaugurator.vmlinuz build/inaugurator.thin.initrd.img $(PXE_LOADER_BUDGET_BYTES)
 
 .PHONY: build_python_dist_locally
 build_python_dist_locally:

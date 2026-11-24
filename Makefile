@@ -25,6 +25,10 @@ check_image: build/inaugurator.thin.initrd.dir build/inaugurator.thin.initrd.img
 	PYTHONPATH=. python -m inaugurator.tests.image_check $<
 	sh/check_image_size.sh build/inaugurator.vmlinuz build/inaugurator.thin.initrd.img $(PXE_LOADER_BUDGET_BYTES)
 
+.PHONY: check_image_drivers
+check_image_drivers:
+	PYTHONPATH=. python -m inaugurator.tests.image_check build/inaugurator.thin.initrd.dir
+
 integration_test:
 	@echo "Note: For specific tests, run with TESTS=(Space seperated test names)."
 	@PYTHONPATH=inaugurator python inaugurator/tests/integration_test.py $(TESTS)
