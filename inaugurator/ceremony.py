@@ -169,9 +169,9 @@ class Ceremony:
                      dict(device=self._targetDevice, layout=self._args.inauguratorPartitionLayout))
         partitionTable = partitiontable.PartitionTable(self._targetDevice,
                                                        layoutScheme=self._args.inauguratorPartitionLayout, hypervisor=self._args.hypervisor)
-        if self._args.inauguratorClearDisk:
-            partitionTable.clear()
-        partitionTable.verify()
+        partitionTable.prepare(
+            clearFirst=self._args.inauguratorClearDisk,
+            rebuildOnFailure=self._args.inauguratorSource != "local")
         self._bootPartitionPath = partitionTable.getBootPartitionPath()
 
     def _configureETC(self, destination):
