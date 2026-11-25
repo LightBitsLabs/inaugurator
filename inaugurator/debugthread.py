@@ -5,6 +5,7 @@ import logging
 import traceback
 import threading
 from inaugurator import sh
+from inaugurator import loadkernel
 
 
 PORT = 8888
@@ -58,7 +59,7 @@ class DebugThread(threading.Thread):
                     logging.info("Rebooting...")
                     # Sleep so that there will be enough time for the log to be printed
                     time.sleep(1)
-                    logging.info(sh.run("reboot -f"))
+                    logging.info(loadkernel.reboot())
                 try:
                     logging.info('command: \"{}\"'.format(cmd))
                     logging.info(sh.run(cmd))
